@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/tracing"
@@ -144,28 +145,28 @@ type Message struct {
 	// When SkipNonceChecks is true, the message nonce is not checked against the
 	// account nonce in state.
 	// This field will be set to true for operations like RPC eth_call.
-	SkipNonceChecks bool
+	SkipAccountChecks bool
 
-	// When SkipFromEOACheck is true, the message sender is not checked to be an EOA.
-	SkipFromEOACheck bool
+	// CHANGE(taiko): whether the current transaction is the first TaikoL2.anchor transaction in a block.
+	IsAnchor bool
 }
 
 // TransactionToMessage converts a transaction into a Message.
 func TransactionToMessage(tx *types.Transaction, s types.Signer, baseFee *big.Int) (*Message, error) {
 	msg := &Message{
-		Nonce:            tx.Nonce(),
-		GasLimit:         tx.Gas(),
-		GasPrice:         new(big.Int).Set(tx.GasPrice()),
-		GasFeeCap:        new(big.Int).Set(tx.GasFeeCap()),
-		GasTipCap:        new(big.Int).Set(tx.GasTipCap()),
-		To:               tx.To(),
-		Value:            tx.Value(),
-		Data:             tx.Data(),
-		AccessList:       tx.AccessList(),
-		SkipNonceChecks:  false,
-		SkipFromEOACheck: false,
-		BlobHashes:       tx.BlobHashes(),
-		BlobGasFeeCap:    tx.BlobGasFeeCap(),
+		Nonce:             tx.Nonce(),
+		GasLimit:          tx.Gas(),
+		GasPrice:          new(big.Int).Set(tx.GasPrice()),
+		GasFeeCap:         new(big.Int).Set(tx.GasFeeCap()),
+		GasTipCap:         new(big.Int).Set(tx.GasTipCap()),
+		To:                tx.To(),
+		Value:             tx.Value(),
+		Data:              tx.Data(),
+		AccessList:        tx.AccessList(),
+		SkipAccountChecks: false,
+		BlobHashes:        tx.BlobHashes(),
+		BlobGasFeeCap:     tx.BlobGasFeeCap(),
+		IsAnchor:          tx.IsAnchor(),
 	}
 	// If baseFee provided, set gasPrice to effectiveGasPrice.
 	if baseFee != nil {
@@ -265,6 +266,10 @@ func (st *StateTransition) buyGas() error {
 	if overflow {
 		return fmt.Errorf("%w: address %v required balance exceeds 256 bits", ErrInsufficientFunds, st.msg.From.Hex())
 	}
+	if st.msg.IsAnchor {
+		balanceCheckU256 = common.U2560
+		mgval = common.Big0
+	}
 	if have, want := st.state.GetBalance(st.msg.From), balanceCheckU256; have.Cmp(want) < 0 {
 		return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From.Hex(), have, want)
 	}
@@ -311,7 +316,8 @@ func (st *StateTransition) preCheck() error {
 	// Make sure that transaction gasFeeCap is greater than the baseFee (post london)
 	if st.evm.ChainConfig().IsLondon(st.evm.Context.BlockNumber) {
 		// Skip the checks if gas fields are zero and baseFee was explicitly disabled (eth_call)
-		skipCheck := st.evm.Config.NoBaseFee && msg.GasFeeCap.BitLen() == 0 && msg.GasTipCap.BitLen() == 0
+		skipCheck := (st.evm.Config.NoBaseFee && msg.GasFeeCap.BitLen() == 0 && msg.GasTipCap.BitLen() == 0) ||
+			st.msg.IsAnchor
 		if !skipCheck {
 			if l := msg.GasFeeCap.BitLen(); l > 256 {
 				return fmt.Errorf("%w: address %v, maxFeePerGas bit length: %d", ErrFeeCapVeryHigh,
@@ -477,11 +483,13 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	} else {
 		fee := new(uint256.Int).SetUint64(st.gasUsed())
 		fee.Mul(fee, effectiveTipU256)
-		st.state.AddBalance(st.evm.Context.Coinbase, fee, tracing.BalanceIncreaseRewardTransactionFee)
-
-		// add the coinbase to the witness iff the fee is greater than 0
-		if rules.IsEIP4762 && fee.Sign() != 0 {
-			st.evm.AccessEvents.AddAccount(st.evm.Context.Coinbase, true)
+		st.state.AddBalance(st.evm.Context.Coinbase, fee)
+		// CHANGE(taiko): basefee is not burnt, but sent to a treasury instead.
+		if st.evm.ChainConfig().Taiko && st.evm.Context.BaseFee != nil && !st.msg.IsAnchor {
+			st.state.AddBalance(
+				st.getTreasuryAddress(),
+				uint256.MustFromBig(new(big.Int).Mul(st.evm.Context.BaseFee, new(big.Int).SetUint64(st.gasUsed()))),
+			)
 		}
 	}
 
@@ -506,13 +514,12 @@ func (st *StateTransition) refundGas(refundQuotient uint64) uint64 {
 
 	st.gasRemaining += refund
 
-	// Return ETH for remaining gas, exchanged at the original rate.
-	remaining := uint256.NewInt(st.gasRemaining)
-	remaining.Mul(remaining, uint256.MustFromBig(st.msg.GasPrice))
-	st.state.AddBalance(st.msg.From, remaining, tracing.BalanceIncreaseGasReturn)
-
-	if st.evm.Config.Tracer != nil && st.evm.Config.Tracer.OnGasChange != nil && st.gasRemaining > 0 {
-		st.evm.Config.Tracer.OnGasChange(st.gasRemaining, 0, tracing.GasChangeTxLeftOverReturned)
+	// Do not change the balance in anchor transactions.
+	if !st.msg.IsAnchor {
+		// Return ETH for remaining gas, exchanged at the original rate.
+		remaining := uint256.NewInt(st.gasRemaining)
+		remaining = remaining.Mul(remaining, uint256.MustFromBig(st.msg.GasPrice))
+		st.state.AddBalance(st.msg.From, remaining)
 	}
 
 	// Also return remaining gas to the block gas counter so it is
@@ -530,4 +537,18 @@ func (st *StateTransition) gasUsed() uint64 {
 // blobGasUsed returns the amount of blob gas used by the message.
 func (st *StateTransition) blobGasUsed() uint64 {
 	return uint64(len(st.msg.BlobHashes) * params.BlobTxBlobGasPerBlob)
+}
+
+// CHANGE(taiko): returns the treasury address based on chain ID.
+func (st *StateTransition) getTreasuryAddress() common.Address {
+	var (
+		prefix = st.evm.ChainConfig().ChainID.String()
+		suffix = "10001"
+	)
+	return common.HexToAddress(
+		"0x" +
+			prefix +
+			strings.Repeat("0", common.AddressLength*2-len(prefix)-len(suffix)) +
+			suffix,
+	)
 }

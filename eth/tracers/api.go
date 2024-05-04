@@ -271,6 +271,13 @@ func (api *API) traceChain(start, end *types.Block, config *TraceConfig, closed 
 				)
 				// Trace all the transactions contained within
 				for i, tx := range task.block.Transactions() {
+					if i == 0 && api.backend.ChainConfig().Taiko {
+						if err := tx.MarkAsAnchor(); err != nil {
+							log.Warn("Mark anchor transaction error", "error", err)
+							task.results[i] = &txTraceResult{TxHash: tx.Hash(), Error: err.Error()}
+							break
+						}
+					}
 					msg, _ := core.TransactionToMessage(tx, signer, task.block.BaseFee())
 					txctx := &Context{
 						BlockHash:   task.block.Hash(),
@@ -545,6 +552,11 @@ func (api *API) IntermediateRoots(ctx context.Context, hash common.Hash, config 
 		core.ProcessParentBlockHash(block.ParentHash(), vm.NewEVM(vmctx, vm.TxContext{}, statedb, chainConfig, vm.Config{}), statedb)
 	}
 	for i, tx := range block.Transactions() {
+		if i == 0 && chainConfig.Taiko {
+			if err := tx.MarkAsAnchor(); err != nil {
+				return nil, err
+			}
+		}
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
@@ -630,6 +642,11 @@ func (api *API) traceBlock(ctx context.Context, block *types.Block, config *Trac
 		results   = make([]*txTraceResult, len(txs))
 	)
 	for i, tx := range txs {
+		if i == 0 && api.backend.ChainConfig().Taiko {
+			if err := tx.MarkAsAnchor(); err != nil {
+				return nil, err
+			}
+		}
 		// Generate the next state snapshot fast without tracing
 		msg, _ := core.TransactionToMessage(tx, signer, block.BaseFee())
 		txctx := &Context{
@@ -792,6 +809,11 @@ func (api *API) standardTraceBlockToFile(ctx context.Context, block *types.Block
 		core.ProcessParentBlockHash(block.ParentHash(), vmenv, statedb)
 	}
 	for i, tx := range block.Transactions() {
+		if i == 0 && chainConfig.Taiko {
+			if err := tx.MarkAsAnchor(); err != nil {
+				return nil, err
+			}
+		}
 		// Prepare the transaction for un-traced execution
 		var (
 			msg, _    = core.TransactionToMessage(tx, signer, block.BaseFee())

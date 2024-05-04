@@ -282,6 +282,17 @@ var NetworkNames = map[string]string{
 	MainnetChainConfig.ChainID.String(): "mainnet",
 	SepoliaChainConfig.ChainID.String(): "sepolia",
 	HoleskyChainConfig.ChainID.String(): "holesky",
+	// CHANGE(taiko): add Taiko network name.
+	TaikoMainnetNetworkID.String():     "Taiko",
+	TaikoInternalL2ANetworkID.String(): "Taiko Internal L2A Devnet",
+	TaikoInternalL2BNetworkID.String(): "Taiko Internal L2B Devnet",
+	SnaefellsjokullNetworkID.String():  "Taiko Alpha-1 (Snæfellsjökull)",
+	AskjaNetworkID.String():            "Taiko Alpha-2 (Askja)",
+	GrimsvotnNetworkID.String():        "Taiko Alpha-3 L2 (Grimsvotn)",
+	EldfellNetworkID.String():          "Taiko Alpha-4 L3 (Eldfell)",
+	JolnirNetworkID.String():           "Taiko Alpha-5 L2 (Jolnir)",
+	KatlaNetworkID.String():            "Taiko Alpha-6 L2 (Katla)",
+	HeklaNetworkID.String():            "Taiko Alpha-7 L2 (Hekla)",
 }
 
 // ChainConfig is the core config which determines the blockchain settings.
@@ -329,6 +340,9 @@ type ChainConfig struct {
 	// Various consensus engines
 	Ethash *EthashConfig `json:"ethash,omitempty"`
 	Clique *CliqueConfig `json:"clique,omitempty"`
+
+	// CHANGE(taiko): Taiko network flag.
+	Taiko bool `json:"taiko"`
 }
 
 // EthashConfig is the consensus engine configs for proof-of-work based sealing.
@@ -361,6 +375,9 @@ func (c *ChainConfig) Description() string {
 	}
 	banner += fmt.Sprintf("Chain ID:  %v (%s)\n", c.ChainID, network)
 	switch {
+	// CHANGE(taiko): print Taiko consensus engine in banner.
+	case c.Taiko:
+		banner += "Consensus: Taiko\n"
 	case c.Ethash != nil:
 		banner += "Consensus: Beacon (proof-of-stake), merged from Ethash (proof-of-work)\n"
 	case c.Clique != nil:

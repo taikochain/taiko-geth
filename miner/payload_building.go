@@ -69,28 +69,24 @@ func (args *BuildPayloadArgs) Id() engine.PayloadID {
 // the revenue. Therefore, the empty-block here is always available and full-block
 // will be set/updated afterwards.
 type Payload struct {
-	id            engine.PayloadID
-	empty         *types.Block
-	emptyWitness  *stateless.Witness
-	full          *types.Block
-	fullWitness   *stateless.Witness
-	sidecars      []*types.BlobTxSidecar
-	emptyRequests [][]byte
-	requests      [][]byte
-	fullFees      *big.Int
-	stop          chan struct{}
-	lock          sync.Mutex
-	cond          *sync.Cond
+	id       engine.PayloadID
+	empty    *types.Block
+	full     *types.Block
+	sidecars []*types.BlobTxSidecar
+	fullFees *big.Int
+	stop     chan struct{}
+	lock     sync.Mutex
+	cond     *sync.Cond
+	done     chan struct{} // CHANGE(taiko): done channel to communicate we shouldnt write to `stop` channel.
 }
 
 // newPayload initializes the payload object.
 func newPayload(empty *types.Block, emptyRequests [][]byte, witness *stateless.Witness, id engine.PayloadID) *Payload {
 	payload := &Payload{
-		id:            id,
-		empty:         empty,
-		emptyRequests: emptyRequests,
-		emptyWitness:  witness,
-		stop:          make(chan struct{}),
+		id:    id,
+		empty: empty,
+		stop:  make(chan struct{}),
+		done:  make(chan struct{}, 1), // CHANGE(taiko): buffered channel to communicate done to taiko payload builder
 	}
 	log.Info("Starting work on payload", "id", payload.id)
 	payload.cond = sync.NewCond(&payload.lock)
@@ -142,6 +138,7 @@ func (payload *Payload) Resolve() *engine.ExecutionPayloadEnvelope {
 	select {
 	case <-payload.stop:
 	default:
+		payload.done <- struct{}{} // CHANGE(taiko): signal to taiko payload builder to not write to `payload.stop` channel
 		close(payload.stop)
 	}
 	if payload.full != nil {
@@ -195,6 +192,7 @@ func (payload *Payload) ResolveFull() *engine.ExecutionPayloadEnvelope {
 	select {
 	case <-payload.stop:
 	default:
+		payload.done <- struct{}{} // CHANGE(taiko): signal to taiko payload builder to not write to `payload.stop` channel
 		close(payload.stop)
 	}
 	envelope := engine.BlockToExecutableData(payload.full, payload.fullFees, payload.sidecars, payload.requests)
@@ -254,6 +252,10 @@ func (miner *Miner) buildPayload(args *BuildPayloadArgs, witness bool) (*Payload
 		for {
 			select {
 			case <-timer.C:
+				// CHANGE(taiko): do not update payload.
+				if w.chainConfig.Taiko {
+					continue
+				}
 				start := time.Now()
 				r := miner.generateWork(fullParams, witness)
 				if r.err == nil {
