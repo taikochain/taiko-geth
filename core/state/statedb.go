@@ -149,12 +149,17 @@ type StateDB struct {
 	SnapshotCommits time.Duration
 	TrieDBCommits   time.Duration
 
-	AccountLoaded  int          // Number of accounts retrieved from the database during the state transition
-	AccountUpdated int          // Number of accounts updated during the state transition
-	AccountDeleted int          // Number of accounts deleted during the state transition
-	StorageLoaded  int          // Number of storage slots retrieved from the database during the state transition
-	StorageUpdated atomic.Int64 // Number of storage slots updated during the state transition
-	StorageDeleted atomic.Int64 // Number of storage slots deleted during the state transition
+	AccountUpdated int
+	StorageUpdated int
+	AccountDeleted int
+	StorageDeleted int
+
+	// Testing hooks
+	onCommit func(states *triestate.Set) // Hook invoked when commit is performed
+
+	// CHANGE(taiko): basefeeSharingPctg of the basefee will be sent to the block.coinbase,
+	// the remaining will be sent to the treasury address.
+	BasefeeSharingPctg uint8
 }
 
 // New creates a new state from a given trie.
