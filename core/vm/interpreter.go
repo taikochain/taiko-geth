@@ -249,8 +249,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		} else if sLen > operation.maxStack {
 			return nil, &ErrStackOverflow{stackLen: sLen, limit: operation.maxStack}
 		}
-		// for tracing: this gas consumption event is emitted below in the debug section.
-		if contract.Gas < cost {
+		if !contract.UseGas(cost, in.evm.Config.Tracer, tracing.GasChangeIgnored) {
 			return nil, ErrOutOfGas
 		} else {
 			contract.Gas -= cost
@@ -282,11 +281,8 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 			if err != nil {
 				return nil, fmt.Errorf("%w: %v", ErrOutOfGas, err)
 			}
-			// for tracing: this gas consumption event is emitted below in the debug section.
-			if contract.Gas < dynamicCost {
+			if !contract.UseGas(dynamicCost, in.evm.Config.Tracer, tracing.GasChangeIgnored) {
 				return nil, ErrOutOfGas
-			} else {
-				contract.Gas -= dynamicCost
 			}
 
 			// Do tracing before memory expansion

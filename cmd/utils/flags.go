@@ -320,7 +320,7 @@ var (
 		Usage:    "Target EL engine API URL",
 		Category: flags.BeaconCategory,
 	}
-	BlsyncJWTSecretFlag = &flags.DirectoryFlag{
+	BlsyncJWTSecretFlag = &cli.StringFlag{
 		Name:     "blsync.jwtsecret",
 		Usage:    "Path to a JWT secret to use for target engine API endpoint",
 		Category: flags.BeaconCategory,
@@ -525,7 +525,6 @@ var (
 	VMTraceJsonConfigFlag = &cli.StringFlag{
 		Name:     "vmtrace.jsonconfig",
 		Usage:    "Tracer configuration (JSON)",
-		Value:    "{}",
 		Category: flags.VMCategory,
 	}
 	// API options.
@@ -840,7 +839,7 @@ var (
 		Value:    ethconfig.Defaults.GPO.IgnorePrice.Int64(),
 		Category: flags.GasPriceCategory,
 	}
-	// CHANGE(taiko): use default gas price flag
+	// CHANGE(taiko): add `--gpo.defaultprice` flag.
 	GpoDefaultGasPriceFlag = &cli.Int64Flag{
 		Name:     "gpo.defaultprice",
 		Usage:    "Default gas price",
@@ -1282,6 +1281,24 @@ func setEtherbase(ctx *cli.Context, cfg *ethconfig.Config) {
 	cfg.Miner.PendingFeeRecipient = common.BytesToAddress(b)
 }
 
+// MakePasswordList reads password lines from the file specified by the global --password flag.
+func MakePasswordList(ctx *cli.Context) []string {
+	path := ctx.Path(PasswordFileFlag.Name)
+	if path == "" {
+		return nil
+	}
+	text, err := os.ReadFile(path)
+	if err != nil {
+		Fatalf("Failed to read password file: %v", err)
+	}
+	lines := strings.Split(string(text), "\n")
+	// Sanitise DOS line endings.
+	for i := range lines {
+		lines[i] = strings.TrimRight(lines[i], "\r")
+	}
+	return lines
+}
+
 func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
 	setNodeKey(ctx, cfg)
 	setNAT(ctx, cfg)
@@ -1427,10 +1444,6 @@ func setGPO(ctx *cli.Context, cfg *gasprice.Config) {
 	}
 	if ctx.IsSet(GpoIgnoreGasPriceFlag.Name) {
 		cfg.IgnorePrice = big.NewInt(ctx.Int64(GpoIgnoreGasPriceFlag.Name))
-	}
-	// CHANGE(taiko): use flag
-	if ctx.IsSet(GpoDefaultGasPriceFlag.Name) {
-		cfg.Default = big.NewInt(ctx.Int64(GpoDefaultGasPriceFlag.Name))
 	}
 }
 
@@ -1731,7 +1744,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	}
 	// Override any default configs for hard coded networks.
 	switch {
-	// CHANGE(taiko): when --taiko flag is set, use the Taiko genesis.
+	// CHANGE(taiko): when `--taiko` flag is set, use the Taiko genesis.
 	case ctx.IsSet(TaikoFlag.Name):
 		cfg.Genesis = core.TaikoGenesisBlock(cfg.NetworkId)
 	case ctx.Bool(MainnetFlag.Name):
@@ -1814,6 +1827,9 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 				if err != nil {
 					Fatalf("Could not read genesis from database: %v", err)
 				}
+				if !genesis.Config.TerminalTotalDifficultyPassed {
+					Fatalf("Bad developer-mode genesis configuration: terminalTotalDifficultyPassed must be true")
+				}
 				if genesis.Config.TerminalTotalDifficulty == nil {
 					Fatalf("Bad developer-mode genesis configuration: terminalTotalDifficulty must be specified")
 				} else if genesis.Config.TerminalTotalDifficulty.Cmp(big.NewInt(0)) != 0 {
@@ -1844,85 +1860,15 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	// VM tracing config.
 	if ctx.IsSet(VMTraceFlag.Name) {
 		if name := ctx.String(VMTraceFlag.Name); name != "" {
-			cfg.VMTrace = name
-			cfg.VMTraceJsonConfig = ctx.String(VMTraceJsonConfigFlag.Name)
-		}
-	}
-}
+			var config string
+			if ctx.IsSet(VMTraceJsonConfigFlag.Name) {
+				config = ctx.String(VMTraceJsonConfigFlag.Name)
+			}
 
-// MakeBeaconLightConfig constructs a beacon light client config based on the
-// related command line flags.
-func MakeBeaconLightConfig(ctx *cli.Context) bparams.ClientConfig {
-	var config bparams.ClientConfig
-	customConfig := ctx.IsSet(BeaconConfigFlag.Name)
-	CheckExclusive(ctx, MainnetFlag, SepoliaFlag, HoleskyFlag, BeaconConfigFlag)
-	switch {
-	case ctx.Bool(MainnetFlag.Name):
-		config.ChainConfig = *bparams.MainnetLightConfig
-	case ctx.Bool(SepoliaFlag.Name):
-		config.ChainConfig = *bparams.SepoliaLightConfig
-	case ctx.Bool(HoleskyFlag.Name):
-		config.ChainConfig = *bparams.HoleskyLightConfig
-	default:
-		if !customConfig {
-			config.ChainConfig = *bparams.MainnetLightConfig
+			cfg.VMTrace = name
+			cfg.VMTraceJsonConfig = config
 		}
 	}
-	// Genesis root and time should always be specified together with custom chain config
-	if customConfig {
-		if !ctx.IsSet(BeaconGenesisRootFlag.Name) {
-			Fatalf("Custom beacon chain config is specified but genesis root is missing")
-		}
-		if !ctx.IsSet(BeaconGenesisTimeFlag.Name) {
-			Fatalf("Custom beacon chain config is specified but genesis time is missing")
-		}
-		if !ctx.IsSet(BeaconCheckpointFlag.Name) {
-			Fatalf("Custom beacon chain config is specified but checkpoint is missing")
-		}
-		config.ChainConfig = bparams.ChainConfig{
-			GenesisTime: ctx.Uint64(BeaconGenesisTimeFlag.Name),
-		}
-		if c, err := hexutil.Decode(ctx.String(BeaconGenesisRootFlag.Name)); err == nil && len(c) <= 32 {
-			copy(config.GenesisValidatorsRoot[:len(c)], c)
-		} else {
-			Fatalf("Invalid hex string", "beacon.genesis.gvroot", ctx.String(BeaconGenesisRootFlag.Name), "error", err)
-		}
-		configFile := ctx.String(BeaconConfigFlag.Name)
-		if err := config.ChainConfig.LoadForks(configFile); err != nil {
-			Fatalf("Could not load beacon chain config", "file", configFile, "error", err)
-		}
-		log.Info("Using custom beacon chain config", "file", configFile)
-	} else {
-		if ctx.IsSet(BeaconGenesisRootFlag.Name) {
-			Fatalf("Genesis root is specified but custom beacon chain config is missing")
-		}
-		if ctx.IsSet(BeaconGenesisTimeFlag.Name) {
-			Fatalf("Genesis time is specified but custom beacon chain config is missing")
-		}
-	}
-	// Checkpoint is required with custom chain config and is optional with pre-defined config
-	if ctx.IsSet(BeaconCheckpointFlag.Name) {
-		if c, err := hexutil.Decode(ctx.String(BeaconCheckpointFlag.Name)); err == nil && len(c) <= 32 {
-			copy(config.Checkpoint[:len(c)], c)
-		} else {
-			Fatalf("Invalid hex string", "beacon.checkpoint", ctx.String(BeaconCheckpointFlag.Name), "error", err)
-		}
-	}
-	config.Apis = ctx.StringSlice(BeaconApiFlag.Name)
-	if config.Apis == nil {
-		Fatalf("Beacon node light client API URL not specified")
-	}
-	config.CustomHeader = make(map[string]string)
-	for _, s := range ctx.StringSlice(BeaconApiHeaderFlag.Name) {
-		kv := strings.Split(s, ":")
-		if len(kv) != 2 {
-			Fatalf("Invalid custom API header entry: %s", s)
-		}
-		config.CustomHeader[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
-	}
-	config.Threshold = ctx.Int(BeaconThresholdFlag.Name)
-	config.NoFilter = ctx.Bool(BeaconNoFilterFlag.Name)
-	return config
 }
 
 // SetDNSDiscoveryDefaults configures DNS discovery with the given URL if
@@ -2201,7 +2147,10 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readonly bool) (*core.BlockCh
 	}
 	if ctx.IsSet(VMTraceFlag.Name) {
 		if name := ctx.String(VMTraceFlag.Name); name != "" {
-			config := json.RawMessage(ctx.String(VMTraceJsonConfigFlag.Name))
+			var config json.RawMessage
+			if ctx.IsSet(VMTraceJsonConfigFlag.Name) {
+				config = json.RawMessage(ctx.String(VMTraceJsonConfigFlag.Name))
+			}
 			t, err := tracers.LiveDirectory.New(name, config)
 			if err != nil {
 				Fatalf("Failed to create tracer %q: %v", name, err)

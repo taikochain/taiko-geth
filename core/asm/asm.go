@@ -72,23 +72,9 @@ func (it *instructionIterator) Next() bool {
 		return false
 	}
 	it.op = vm.OpCode(it.code[it.pc])
-	var a int
-	if !it.eofEnabled { // Legacy code
-		if it.op.IsPush() {
-			a = int(it.op) - int(vm.PUSH0)
-		}
-	} else { // EOF code
-		if it.op == vm.RJUMPV {
-			// RJUMPV is unique as it has a variable sized operand. The total size is
-			// determined by the count byte which immediately follows RJUMPV.
-			maxIndex := int(it.code[it.pc+1])
-			a = (maxIndex+1)*2 + 1
-		} else {
-			a = vm.Immediates(it.op)
-		}
-	}
-	if a > 0 {
-		u := it.pc + 1 + uint64(a)
+	if it.op.IsPush() {
+		a := uint64(it.op) - uint64(vm.PUSH0)
+		u := it.pc + 1 + a
 		if uint64(len(it.code)) <= it.pc || uint64(len(it.code)) < u {
 			it.error = fmt.Errorf("incomplete instruction at %v", it.pc)
 			return false

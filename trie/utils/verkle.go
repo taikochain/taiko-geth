@@ -200,7 +200,7 @@ func CodeChunkKey(address []byte, chunk *uint256.Int) []byte {
 	return GetTreeKey(address, treeIndex, subIndex)
 }
 
-func StorageIndex(storageKey []byte) (*uint256.Int, byte) {
+func StorageIndex(bytes []byte) (*uint256.Int, byte) {
 	// If the storage slot is in the header, we need to add the header offset.
 	var key uint256.Int
 	key.SetBytes(storageKey)

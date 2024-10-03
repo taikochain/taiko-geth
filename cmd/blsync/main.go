@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"slices"
 
 	"github.com/ethereum/go-ethereum/beacon/blsync"
 	"github.com/ethereum/go-ethereum/cmd/utils"
@@ -34,7 +33,7 @@ import (
 
 func main() {
 	app := flags.NewApp("beacon light syncer tool")
-	app.Flags = slices.Concat([]cli.Flag{
+	app.Flags = flags.Merge([]cli.Flag{
 		utils.BeaconApiFlag,
 		utils.BeaconApiHeaderFlag,
 		utils.BeaconThresholdFlag,
@@ -46,7 +45,6 @@ func main() {
 		//TODO datadir for optional permanent database
 		utils.MainnetFlag,
 		utils.SepoliaFlag,
-		utils.HoleskyFlag,
 		utils.BlsyncApiFlag,
 		utils.BlsyncJWTSecretFlag,
 	},
@@ -70,7 +68,7 @@ func main() {
 
 func sync(ctx *cli.Context) error {
 	// set up blsync
-	client := blsync.NewClient(utils.MakeBeaconLightConfig(ctx))
+	client := blsync.NewClient(ctx)
 	client.SetEngineRPC(makeRPCClient(ctx))
 	client.Start()
 

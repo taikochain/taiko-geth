@@ -104,8 +104,8 @@ func newTestBackend(config *node.Config) (*node.Node, []*types.Block, error) {
 		return nil, nil, fmt.Errorf("can't create new node: %v", err)
 	}
 	// Create Ethereum Service
-	ecfg := &ethconfig.Config{Genesis: genesis, RPCGasCap: 1000000}
-	ethservice, err := eth.New(n, ecfg)
+	config := &ethconfig.Config{Genesis: genesis, RPCGasCap: 1000000}
+	ethservice, err := eth.New(n, config)
 	if err != nil {
 		return nil, nil, fmt.Errorf("can't create new ethereum service: %v", err)
 	}

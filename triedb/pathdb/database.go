@@ -56,6 +56,11 @@ var (
 	maxDiffLayers = 128
 )
 
+var (
+	// maxDiffLayers is the maximum diff layers allowed in the layer tree.
+	maxDiffLayers = 128
+)
+
 // layer is the interface implemented by all state layers which includes some
 // public methods and some additional methods for internal usage.
 type layer interface {
@@ -63,9 +68,7 @@ type layer interface {
 	// if the read operation exits abnormally. Specifically, if the layer is
 	// already stale.
 	//
-	// Note:
-	// - the returned node is not a copy, please don't modify it.
-	// - no error will be returned if the requested node is not found in database.
+	// Note, no error will be returned if the requested node is not found in database.
 	node(owner common.Hash, path []byte, depth int) ([]byte, common.Hash, *nodeLoc, error)
 
 	// rootHash returns the root hash for which this layer was made.
@@ -145,15 +148,15 @@ type Database struct {
 	// readOnly is the flag whether the mutation is allowed to be applied.
 	// It will be set automatically when the database is journaled during
 	// the shutdown to reject all following unexpected mutations.
-	readOnly bool // Flag if database is opened in read only mode
-	waitSync bool // Flag if database is deactivated due to initial state sync
-	isVerkle bool // Flag if database is used for verkle tree
-
-	config  *Config                      // Configuration for database
-	diskdb  ethdb.Database               // Persistent storage for matured trie nodes
-	tree    *layerTree                   // The group for all known layers
-	freezer ethdb.ResettableAncientStore // Freezer for storing trie histories, nil possible in tests
-	lock    sync.RWMutex                 // Lock to prevent mutations from happening at the same time
+	readOnly   bool                         // Flag if database is opened in read only mode
+	waitSync   bool                         // Flag if database is deactivated due to initial state sync
+	isVerkle   bool                         // Flag if database is used for verkle tree
+	bufferSize int                          // Memory allowance (in bytes) for caching dirty nodes
+	config     *Config                      // Configuration for database
+	diskdb     ethdb.Database               // Persistent storage for matured trie nodes
+	tree       *layerTree                   // The group for all known layers
+	freezer    ethdb.ResettableAncientStore // Freezer for storing trie histories, nil possible in tests
+	lock       sync.RWMutex                 // Lock to prevent mutations from happening at the same time
 }
 
 // New attempts to load an already existing layer from a persistent key-value
@@ -174,10 +177,11 @@ func New(diskdb ethdb.Database, config *Config, isVerkle bool) *Database {
 		diskdb = rawdb.NewTable(diskdb, string(rawdb.VerklePrefix))
 	}
 	db := &Database{
-		readOnly: config.ReadOnly,
-		isVerkle: isVerkle,
-		config:   config,
-		diskdb:   diskdb,
+		readOnly:   config.ReadOnly,
+		isVerkle:   isVerkle,
+		bufferSize: config.DirtyCacheSize,
+		config:     config,
+		diskdb:     diskdb,
 	}
 	// Construct the layer tree by resolving the in-disk singleton state
 	// and in-memory layer journal.
@@ -186,7 +190,7 @@ func New(diskdb ethdb.Database, config *Config, isVerkle bool) *Database {
 	// Repair the state history, which might not be aligned with the state
 	// in the key-value store due to an unclean shutdown.
 	if err := db.repairHistory(); err != nil {
-		log.Crit("Failed to repair state history", "err", err)
+		log.Crit("Failed to repair pathdb", "err", err)
 	}
 	// Disable database in case node is still in the initial state sync stage.
 	if rawdb.ReadSnapSyncStatusFlag(diskdb) == rawdb.StateSyncRunning && !db.readOnly {
@@ -194,11 +198,6 @@ func New(diskdb ethdb.Database, config *Config, isVerkle bool) *Database {
 			log.Crit("Failed to disable database", "err", err) // impossible to happen
 		}
 	}
-	fields := config.fields()
-	if db.isVerkle {
-		fields = append(fields, "verkle", true)
-	}
-	log.Info("Initialized path database", fields...)
 	return db
 }
 
@@ -493,6 +492,19 @@ func (db *Database) Initialized(genesisRoot common.Hash) bool {
 		inited = rawdb.ReadSnapSyncStatusFlag(db.diskdb) != rawdb.StateSyncUnknown
 	}
 	return inited
+}
+
+// SetBufferSize sets the node buffer size to the provided value(in bytes).
+func (db *Database) SetBufferSize(size int) error {
+	db.lock.Lock()
+	defer db.lock.Unlock()
+
+	if size > maxBufferSize {
+		log.Info("Capped node buffer size", "provided", common.StorageSize(size), "adjusted", common.StorageSize(maxBufferSize))
+		size = maxBufferSize
+	}
+	db.bufferSize = size
+	return db.tree.bottom().setBufferSize(db.bufferSize)
 }
 
 // modifyAllowed returns the indicator if mutation is allowed. This function

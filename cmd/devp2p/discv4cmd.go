@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -29,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/cmd/devp2p/internal/v4test"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/internal/flags"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -83,7 +83,7 @@ var (
 		Name:   "listen",
 		Usage:  "Runs a discovery node",
 		Action: discv4Listen,
-		Flags: slices.Concat(discoveryNodeFlags, []cli.Flag{
+		Flags: flags.Merge(discoveryNodeFlags, []cli.Flag{
 			httpAddrFlag,
 		}),
 	}

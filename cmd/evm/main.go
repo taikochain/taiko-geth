@@ -149,32 +149,31 @@ var (
 	}
 )
 
-var (
-	stateTransitionCommand = &cli.Command{
-		Name:    "transition",
-		Aliases: []string{"t8n"},
-		Usage:   "Executes a full state transition",
-		Action:  t8ntool.Transition,
-		Flags: []cli.Flag{
-			t8ntool.TraceFlag,
-			t8ntool.TraceTracerFlag,
-			t8ntool.TraceTracerConfigFlag,
-			t8ntool.TraceEnableMemoryFlag,
-			t8ntool.TraceDisableStackFlag,
-			t8ntool.TraceEnableReturnDataFlag,
-			t8ntool.TraceEnableCallFramesFlag,
-			t8ntool.OutputBasedir,
-			t8ntool.OutputAllocFlag,
-			t8ntool.OutputResultFlag,
-			t8ntool.OutputBodyFlag,
-			t8ntool.InputAllocFlag,
-			t8ntool.InputEnvFlag,
-			t8ntool.InputTxsFlag,
-			t8ntool.ForknameFlag,
-			t8ntool.ChainIDFlag,
-			t8ntool.RewardFlag,
-		},
-	}
+var stateTransitionCommand = &cli.Command{
+	Name:    "transition",
+	Aliases: []string{"t8n"},
+	Usage:   "Executes a full state transition",
+	Action:  t8ntool.Transition,
+	Flags: []cli.Flag{
+		t8ntool.TraceFlag,
+		t8ntool.TraceTracerFlag,
+		t8ntool.TraceTracerConfigFlag,
+		t8ntool.TraceEnableMemoryFlag,
+		t8ntool.TraceDisableStackFlag,
+		t8ntool.TraceEnableReturnDataFlag,
+		t8ntool.TraceEnableCallFramesFlag,
+		t8ntool.OutputBasedir,
+		t8ntool.OutputAllocFlag,
+		t8ntool.OutputResultFlag,
+		t8ntool.OutputBodyFlag,
+		t8ntool.InputAllocFlag,
+		t8ntool.InputEnvFlag,
+		t8ntool.InputTxsFlag,
+		t8ntool.ForknameFlag,
+		t8ntool.ChainIDFlag,
+		t8ntool.RewardFlag,
+	},
+}
 
 	transactionCommand = &cli.Command{
 		Name:    "transaction",

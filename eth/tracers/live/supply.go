@@ -1,19 +1,3 @@
-// Copyright 2024 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
-
 package live
 
 import (
@@ -35,7 +19,7 @@ import (
 )
 
 func init() {
-	tracers.LiveDirectory.Register("supply", newSupplyTracer)
+	tracers.LiveDirectory.Register("supply", newSupply)
 }
 
 type supplyInfoIssuance struct {
@@ -79,7 +63,7 @@ type supplyTxCallstack struct {
 	burn  *big.Int
 }
 
-type supplyTracer struct {
+type supply struct {
 	delta       supplyInfo
 	txCallstack []supplyTxCallstack // Callstack for current transaction
 	logger      *lumberjack.Logger
@@ -90,10 +74,12 @@ type supplyTracerConfig struct {
 	MaxSize int    `json:"maxSize"` // MaxSize is the maximum size in megabytes of the tracer log file before it gets rotated. It defaults to 100 megabytes.
 }
 
-func newSupplyTracer(cfg json.RawMessage) (*tracing.Hooks, error) {
+func newSupply(cfg json.RawMessage) (*tracing.Hooks, error) {
 	var config supplyTracerConfig
-	if err := json.Unmarshal(cfg, &config); err != nil {
-		return nil, fmt.Errorf("failed to parse config: %v", err)
+	if cfg != nil {
+		if err := json.Unmarshal(cfg, &config); err != nil {
+			return nil, fmt.Errorf("failed to parse config: %v", err)
+		}
 	}
 	if config.Path == "" {
 		return nil, errors.New("supply tracer output path is required")
@@ -107,19 +93,19 @@ func newSupplyTracer(cfg json.RawMessage) (*tracing.Hooks, error) {
 		logger.MaxSize = config.MaxSize
 	}
 
-	t := &supplyTracer{
+	t := &supply{
 		delta:  newSupplyInfo(),
 		logger: logger,
 	}
 	return &tracing.Hooks{
-		OnBlockStart:    t.onBlockStart,
-		OnBlockEnd:      t.onBlockEnd,
-		OnGenesisBlock:  t.onGenesisBlock,
-		OnTxStart:       t.onTxStart,
-		OnBalanceChange: t.onBalanceChange,
-		OnEnter:         t.onEnter,
-		OnExit:          t.onExit,
-		OnClose:         t.onClose,
+		OnBlockStart:    t.OnBlockStart,
+		OnBlockEnd:      t.OnBlockEnd,
+		OnGenesisBlock:  t.OnGenesisBlock,
+		OnTxStart:       t.OnTxStart,
+		OnBalanceChange: t.OnBalanceChange,
+		OnEnter:         t.OnEnter,
+		OnExit:          t.OnExit,
+		OnClose:         t.OnClose,
 	}, nil
 }
 
@@ -142,11 +128,11 @@ func newSupplyInfo() supplyInfo {
 	}
 }
 
-func (s *supplyTracer) resetDelta() {
+func (s *supply) resetDelta() {
 	s.delta = newSupplyInfo()
 }
 
-func (s *supplyTracer) onBlockStart(ev tracing.BlockEvent) {
+func (s *supply) OnBlockStart(ev tracing.BlockEvent) {
 	s.resetDelta()
 
 	s.delta.Number = ev.Block.NumberU64()
@@ -169,11 +155,11 @@ func (s *supplyTracer) onBlockStart(ev tracing.BlockEvent) {
 	}
 }
 
-func (s *supplyTracer) onBlockEnd(err error) {
+func (s *supply) OnBlockEnd(err error) {
 	s.write(s.delta)
 }
 
-func (s *supplyTracer) onGenesisBlock(b *types.Block, alloc types.GenesisAlloc) {
+func (s *supply) OnGenesisBlock(b *types.Block, alloc types.GenesisAlloc) {
 	s.resetDelta()
 
 	s.delta.Number = b.NumberU64()
@@ -188,7 +174,7 @@ func (s *supplyTracer) onGenesisBlock(b *types.Block, alloc types.GenesisAlloc) 
 	s.write(s.delta)
 }
 
-func (s *supplyTracer) onBalanceChange(a common.Address, prevBalance, newBalance *big.Int, reason tracing.BalanceChangeReason) {
+func (s *supply) OnBalanceChange(a common.Address, prevBalance, newBalance *big.Int, reason tracing.BalanceChangeReason) {
 	diff := new(big.Int).Sub(newBalance, prevBalance)
 
 	// NOTE: don't handle "BalanceIncreaseGenesisBalance" because it is handled in OnGenesisBlock
@@ -207,12 +193,12 @@ func (s *supplyTracer) onBalanceChange(a common.Address, prevBalance, newBalance
 	}
 }
 
-func (s *supplyTracer) onTxStart(vm *tracing.VMContext, tx *types.Transaction, from common.Address) {
+func (s *supply) OnTxStart(vm *tracing.VMContext, tx *types.Transaction, from common.Address) {
 	s.txCallstack = make([]supplyTxCallstack, 0, 1)
 }
 
 // internalTxsHandler handles internal transactions burned amount
-func (s *supplyTracer) internalTxsHandler(call *supplyTxCallstack) {
+func (s *supply) internalTxsHandler(call *supplyTxCallstack) {
 	// Handle Burned amount
 	if call.burn != nil {
 		s.delta.Burn.Misc.Add(s.delta.Burn.Misc, call.burn)
@@ -225,7 +211,7 @@ func (s *supplyTracer) internalTxsHandler(call *supplyTxCallstack) {
 	}
 }
 
-func (s *supplyTracer) onEnter(depth int, typ byte, from common.Address, to common.Address, input []byte, gas uint64, value *big.Int) {
+func (s *supply) OnEnter(depth int, typ byte, from common.Address, to common.Address, input []byte, gas uint64, value *big.Int) {
 	call := supplyTxCallstack{
 		calls: make([]supplyTxCallstack, 0),
 	}
@@ -240,7 +226,7 @@ func (s *supplyTracer) onEnter(depth int, typ byte, from common.Address, to comm
 	s.txCallstack = append(s.txCallstack, call)
 }
 
-func (s *supplyTracer) onExit(depth int, output []byte, gasUsed uint64, err error, reverted bool) {
+func (s *supply) OnExit(depth int, output []byte, gasUsed uint64, err error, reverted bool) {
 	if depth == 0 {
 		// No need to handle Burned amount if transaction is reverted
 		if !reverted {
@@ -266,13 +252,13 @@ func (s *supplyTracer) onExit(depth int, output []byte, gasUsed uint64, err erro
 	s.txCallstack[size-1].calls = append(s.txCallstack[size-1].calls, call)
 }
 
-func (s *supplyTracer) onClose() {
+func (s *supply) OnClose() {
 	if err := s.logger.Close(); err != nil {
 		log.Warn("failed to close supply tracer log file", "error", err)
 	}
 }
 
-func (s *supplyTracer) write(data any) {
+func (s *supply) write(data any) {
 	supply, ok := data.(supplyInfo)
 	if !ok {
 		log.Warn("failed to cast supply tracer data on write to log file")

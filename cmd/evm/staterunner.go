@@ -92,7 +92,7 @@ func stateTestCmd(ctx *cli.Context) error {
 	}
 	// Load the test content from the input file
 	if len(ctx.Args().First()) != 0 {
-		return runStateTest(ctx, ctx.Args().First(), cfg, ctx.Bool(DumpFlag.Name), ctx.Bool(BenchFlag.Name))
+		return runStateTest(ctx.Args().First(), cfg, ctx.Bool(DumpFlag.Name))
 	}
 	// Read filenames from stdin and execute back-to-back
 	scanner := bufio.NewScanner(os.Stdin)
@@ -101,7 +101,7 @@ func stateTestCmd(ctx *cli.Context) error {
 		if len(fname) == 0 {
 			return nil
 		}
-		if err := runStateTest(ctx, fname, cfg, ctx.Bool(DumpFlag.Name), ctx.Bool(BenchFlag.Name)); err != nil {
+		if err := runStateTest(fname, cfg, ctx.Bool(DumpFlag.Name)); err != nil {
 			return err
 		}
 	}
@@ -142,7 +142,7 @@ func collectMatchedSubtests(ctx *cli.Context, testsByName map[string]tests.State
 }
 
 // runStateTest loads the state-test given by fname, and executes the test.
-func runStateTest(ctx *cli.Context, fname string, cfg vm.Config, dump bool, bench bool) error {
+func runStateTest(fname string, cfg vm.Config, dump bool) error {
 	src, err := os.ReadFile(fname)
 	if err != nil {
 		return err
@@ -155,20 +155,26 @@ func runStateTest(ctx *cli.Context, fname string, cfg vm.Config, dump bool, benc
 	matchingTests := collectMatchedSubtests(ctx, testsByName)
 
 	// Iterate over all the tests, run them and aggregate the results
-	var results []StatetestResult
-	for _, test := range matchingTests {
-		// Run the test and aggregate the result
-		result := &StatetestResult{Name: test.name, Fork: test.st.Fork, Pass: true}
-		test.test.Run(test.st, cfg, false, rawdb.HashScheme, func(err error, tstate *tests.StateTestState) {
-			var root common.Hash
-			if tstate.StateDB != nil {
-				root = tstate.StateDB.IntermediateRoot(false)
-				result.Root = &root
-				fmt.Fprintf(os.Stderr, "{\"stateRoot\": \"%#x\"}\n", root)
-				if dump { // Dump any state to aid debugging
-					cpy, _ := state.New(root, tstate.StateDB.Database())
-					dump := cpy.RawDump(nil)
-					result.State = &dump
+	results := make([]StatetestResult, 0, len(testsByName))
+	for key, test := range testsByName {
+		for _, st := range test.Subtests() {
+			// Run the test and aggregate the result
+			result := &StatetestResult{Name: key, Fork: st.Fork, Pass: true}
+			test.Run(st, cfg, false, rawdb.HashScheme, func(err error, tstate *tests.StateTestState) {
+				var root common.Hash
+				if tstate.StateDB != nil {
+					root = tstate.StateDB.IntermediateRoot(false)
+					result.Root = &root
+					fmt.Fprintf(os.Stderr, "{\"stateRoot\": \"%#x\"}\n", root)
+					if dump { // Dump any state to aid debugging
+						cpy, _ := state.New(root, tstate.StateDB.Database())
+						dump := cpy.RawDump(nil)
+						result.State = &dump
+					}
+				}
+				if err != nil {
+					// Test failed, mark as so
+					result.Pass, result.Error = false, err.Error()
 				}
 			}
 			if err != nil {

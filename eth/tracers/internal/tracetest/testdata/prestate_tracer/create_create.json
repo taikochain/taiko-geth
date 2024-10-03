@@ -38,6 +38,7 @@
       "grayGlacierBlock": 0,
       "shanghaiTime": 0,
       "terminalTotalDifficulty": 0,
+      "terminalTotalDifficultyPassed": true,
       "isDev": true
     }
   },

@@ -31,33 +31,42 @@ import (
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fp"
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 	"github.com/ethereum/go-ethereum/common"
+	bls12381 "github.com/kilic/bls12-381"
 	blst "github.com/supranational/blst/bindings/go"
 )
 
 func fuzzG1SubgroupChecks(data []byte) int {
 	input := bytes.NewReader(data)
-	cpG1, blG1, err := getG1Points(input)
+	kpG1, cpG1, blG1, err := getG1Points(input)
 	if err != nil {
 		return 0
 	}
+	inSubGroupKilic := bls12381.NewG1().InCorrectSubgroup(kpG1)
 	inSubGroupGnark := cpG1.IsInSubGroup()
 	inSubGroupBLST := blG1.InG1()
-	if inSubGroupGnark != inSubGroupBLST {
-		panic(fmt.Sprintf("differing subgroup check, gnark %v, blst %v", inSubGroupGnark, inSubGroupBLST))
+	if inSubGroupKilic != inSubGroupGnark {
+		panic(fmt.Sprintf("differing subgroup check, kilic %v, gnark %v", inSubGroupKilic, inSubGroupGnark))
+	}
+	if inSubGroupKilic != inSubGroupBLST {
+		panic(fmt.Sprintf("differing subgroup check, kilic %v, blst %v", inSubGroupKilic, inSubGroupBLST))
 	}
 	return 1
 }
 
 func fuzzG2SubgroupChecks(data []byte) int {
 	input := bytes.NewReader(data)
-	gpG2, blG2, err := getG2Points(input)
+	kpG2, cpG2, blG2, err := getG2Points(input)
 	if err != nil {
 		return 0
 	}
-	inSubGroupGnark := gpG2.IsInSubGroup()
+	inSubGroupKilic := bls12381.NewG2().InCorrectSubgroup(kpG2)
+	inSubGroupGnark := cpG2.IsInSubGroup()
 	inSubGroupBLST := blG2.InG2()
-	if inSubGroupGnark != inSubGroupBLST {
-		panic(fmt.Sprintf("differing subgroup check, gnark %v, blst %v", inSubGroupGnark, inSubGroupBLST))
+	if inSubGroupKilic != inSubGroupGnark {
+		panic(fmt.Sprintf("differing subgroup check, kilic %v, gnark %v", inSubGroupKilic, inSubGroupGnark))
+	}
+	if inSubGroupKilic != inSubGroupBLST {
+		panic(fmt.Sprintf("differing subgroup check, kilic %v, blst %v", inSubGroupKilic, inSubGroupBLST))
 	}
 	return 1
 }
@@ -76,6 +85,11 @@ func fuzzCrossPairing(data []byte) int {
 	if err != nil {
 		return 0
 	}
+
+	// compute pairing using geth
+	engine := bls12381.NewEngine()
+	engine.AddPair(kpG1, kpG2)
+	kResult := engine.Result()
 
 	// compute pairing using gnark
 	cResult, err := gnark.Pair([]gnark.G1Affine{*cpG1}, []gnark.G2Affine{*cpG2})
@@ -177,6 +191,7 @@ func fuzzCrossG2Add(data []byte) int {
 func fuzzCrossG1MultiExp(data []byte) int {
 	var (
 		input        = bytes.NewReader(data)
+		gethScalars  []*bls12381.Fr
 		gnarkScalars []fr.Element
 		gnarkPoints  []gnark.G1Affine
 		blstScalars  []*blst.Scalar
@@ -194,6 +209,10 @@ func fuzzCrossG1MultiExp(data []byte) int {
 		if err != nil {
 			break
 		}
+		gethScalars = append(gethScalars, bls12381.NewFr().FromBytes(s.Bytes()))
+		var gnarkScalar = &fr.Element{}
+		gnarkScalar = gnarkScalar.SetBigInt(s)
+		gnarkScalars = append(gnarkScalars, *gnarkScalar)
 
 		gnarkScalar := new(fr.Element).SetBigInt(s)
 		gnarkScalars = append(gnarkScalars, *gnarkScalar)

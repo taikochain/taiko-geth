@@ -86,23 +86,25 @@ type blockMetadataMarshaling struct {
 
 // ExecutableData is the data necessary to execute an EL payload.
 type ExecutableData struct {
-	ParentHash    common.Hash         `json:"parentHash"    gencodec:"required"`
-	FeeRecipient  common.Address      `json:"feeRecipient"  gencodec:"required"`
-	StateRoot     common.Hash         `json:"stateRoot"     gencodec:"required"`
-	ReceiptsRoot  common.Hash         `json:"receiptsRoot"  gencodec:"required"`
-	LogsBloom     []byte              `json:"logsBloom"     gencodec:"required"`
-	Random        common.Hash         `json:"prevRandao"    gencodec:"required"`
-	Number        uint64              `json:"blockNumber"   gencodec:"required"`
-	GasLimit      uint64              `json:"gasLimit"      gencodec:"required"`
-	GasUsed       uint64              `json:"gasUsed"       gencodec:"required"`
-	Timestamp     uint64              `json:"timestamp"     gencodec:"required"`
-	ExtraData     []byte              `json:"extraData"     gencodec:"required"`
-	BaseFeePerGas *big.Int            `json:"baseFeePerGas" gencodec:"required"`
-	BlockHash     common.Hash         `json:"blockHash"     gencodec:"required"`
-	Transactions  [][]byte            `json:"transactions"`
-	Withdrawals   []*types.Withdrawal `json:"withdrawals"`
-	BlobGasUsed   *uint64             `json:"blobGasUsed"`
-	ExcessBlobGas *uint64             `json:"excessBlobGas"`
+	ParentHash       common.Hash             `json:"parentHash"    gencodec:"required"`
+	FeeRecipient     common.Address          `json:"feeRecipient"  gencodec:"required"`
+	StateRoot        common.Hash             `json:"stateRoot"     gencodec:"required"`
+	ReceiptsRoot     common.Hash             `json:"receiptsRoot"  gencodec:"required"`
+	LogsBloom        []byte                  `json:"logsBloom"     gencodec:"required"`
+	Random           common.Hash             `json:"prevRandao"    gencodec:"required"`
+	Number           uint64                  `json:"blockNumber"   gencodec:"required"`
+	GasLimit         uint64                  `json:"gasLimit"      gencodec:"required"`
+	GasUsed          uint64                  `json:"gasUsed"       gencodec:"required"`
+	Timestamp        uint64                  `json:"timestamp"     gencodec:"required"`
+	ExtraData        []byte                  `json:"extraData"     gencodec:"required"`
+	BaseFeePerGas    *big.Int                `json:"baseFeePerGas" gencodec:"required"`
+	BlockHash        common.Hash             `json:"blockHash"     gencodec:"required"`
+	Transactions     [][]byte                `json:"transactions"`
+	Withdrawals      []*types.Withdrawal     `json:"withdrawals"`
+	BlobGasUsed      *uint64                 `json:"blobGasUsed"`
+	ExcessBlobGas    *uint64                 `json:"excessBlobGas"`
+	Deposits         types.Deposits          `json:"depositRequests"`
+	ExecutionWitness *types.ExecutionWitness `json:"executionWitness,omitempty"`
 
 	TxHash          common.Hash `json:"txHash"`          // CHANGE(taiko): allow passing txHash directly instead of transactions list
 	WithdrawalsHash common.Hash `json:"withdrawalsHash"` // CHANGE(taiko): allow passing WithdrawalsHash directly instead of withdrawals
@@ -139,7 +141,7 @@ type ExecutionPayloadEnvelope struct {
 	BlobsBundle      *BlobsBundleV1  `json:"blobsBundle"`
 	Requests         [][]byte        `json:"executionRequests"`
 	Override         bool            `json:"shouldOverrideBuilder"`
-	Witness          *hexutil.Bytes  `json:"witness,omitempty"`
+	Witness          *hexutil.Bytes  `json:"witness"`
 }
 
 type BlobsBundleV1 struct {
@@ -243,8 +245,8 @@ func decodeTransactions(enc [][]byte) ([]*types.Transaction, error) {
 // and that the blockhash of the constructed block matches the parameters. Nil
 // Withdrawals value will propagate through the returned block. Empty
 // Withdrawals value must be passed via non-nil, length 0 value in data.
-func ExecutableDataToBlock(data ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash, requests [][]byte) (*types.Block, error) {
-	block, err := ExecutableDataToBlockNoHash(data, versionedHashes, beaconRoot, requests)
+func ExecutableDataToBlock(data ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash) (*types.Block, error) {
+	block, err := ExecutableDataToBlockNoHash(data, versionedHashes, beaconRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -257,7 +259,7 @@ func ExecutableDataToBlock(data ExecutableData, versionedHashes []common.Hash, b
 // ExecutableDataToBlockNoHash is analogous to ExecutableDataToBlock, but is used
 // for stateless execution, so it skips checking if the executable data hashes to
 // the requested hash (stateless has to *compute* the root hash, it's not given).
-func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash, requests [][]byte) (*types.Block, error) {
+func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash) (*types.Block, error) {
 	txs, err := decodeTransactions(data.Transactions)
 	if err != nil {
 		return nil, err
@@ -292,21 +294,19 @@ func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.H
 		h := types.DeriveSha(types.Withdrawals(data.Withdrawals), trie.NewStackTrie(nil))
 		withdrawalsRoot = &h
 	}
-
-	var requestsHash *common.Hash
-	if requests != nil {
-		// Put back request type byte.
-		typedRequests := make([][]byte, len(requests))
-		for i, reqdata := range requests {
-			typedReqdata := make([]byte, len(reqdata)+1)
-			typedReqdata[0] = byte(i)
-			copy(typedReqdata[1:], reqdata)
-			typedRequests[i] = typedReqdata
+	// Compute requestsHash if any requests are non-nil.
+	var (
+		requestsHash *common.Hash
+		requests     types.Requests
+	)
+	if data.Deposits != nil {
+		requests = make(types.Requests, 0)
+		for _, d := range data.Deposits {
+			requests = append(requests, types.NewRequest(d))
 		}
-		h := types.CalcRequestsHash(typedRequests)
+		h := types.DeriveSha(requests, trie.NewStackTrie(nil))
 		requestsHash = &h
 	}
-
 	header := &types.Header{
 		ParentHash:       data.ParentHash,
 		UncleHash:        types.EmptyUncleHash,
@@ -330,7 +330,7 @@ func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.H
 		RequestsHash:     requestsHash,
 	}
 	return types.NewBlockWithHeader(header).
-			WithBody(types.Body{Transactions: txs, Uncles: nil, Withdrawals: data.Withdrawals}).
+			WithBody(types.Body{Transactions: txs, Uncles: nil, Withdrawals: data.Withdrawals, Requests: requests}).
 			WithWitness(data.ExecutionWitness),
 		nil
 }
@@ -372,22 +372,22 @@ func BlockToExecutableData(block *types.Block, fees *big.Int, sidecars []*types.
 			bundle.Proofs = append(bundle.Proofs, hexutil.Bytes(sidecar.Proofs[j][:]))
 		}
 	}
+	setRequests(block.Requests(), data)
+	return &ExecutionPayloadEnvelope{ExecutionPayload: data, BlockValue: fees, BlobsBundle: &bundle, Override: false}
+}
 
-	// Remove type byte in requests.
-	var plainRequests [][]byte
+// setRequests differentiates the different request types and
+// assigns them to the associated fields in ExecutableData.
+func setRequests(requests types.Requests, data *ExecutableData) {
 	if requests != nil {
-		plainRequests = make([][]byte, len(requests))
-		for i, reqdata := range requests {
-			plainRequests[i] = reqdata[1:]
-		}
+		// If requests is non-nil, it means deposits are available in block and we
+		// should return an empty slice instead of nil if there are no deposits.
+		data.Deposits = make(types.Deposits, 0)
 	}
-
-	return &ExecutionPayloadEnvelope{
-		ExecutionPayload: data,
-		BlockValue:       fees,
-		BlobsBundle:      &bundle,
-		Requests:         plainRequests,
-		Override:         false,
+	for _, r := range requests {
+		if d, ok := r.Inner().(*types.Deposit); ok {
+			data.Deposits = append(data.Deposits, d)
+		}
 	}
 }
 
@@ -395,6 +395,7 @@ func BlockToExecutableData(block *types.Block, fees *big.Int, sidecars []*types.
 type ExecutionPayloadBody struct {
 	TransactionData []hexutil.Bytes     `json:"transactions"`
 	Withdrawals     []*types.Withdrawal `json:"withdrawals"`
+	Deposits        types.Deposits      `json:"depositRequests"`
 }
 
 // Client identifiers to support ClientVersionV1.

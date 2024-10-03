@@ -123,6 +123,7 @@ type rpcBlock struct {
 	Transactions []rpcTransaction    `json:"transactions"`
 	UncleHashes  []common.Hash       `json:"uncles"`
 	Withdrawals  []*types.Withdrawal `json:"withdrawals,omitempty"`
+	Requests     []*types.Request    `json:"requests,omitempty"`
 }
 
 func (ec *Client) getBlock(ctx context.Context, method string, args ...interface{}) (*types.Block, error) {
@@ -191,12 +192,12 @@ func (ec *Client) getBlock(ctx context.Context, method string, args ...interface
 		}
 		txs[i] = tx.tx
 	}
-
 	return types.NewBlockWithHeader(head).WithBody(
 		types.Body{
 			Transactions: txs,
 			Uncles:       uncles,
 			Withdrawals:  body.Withdrawals,
+			Requests:     body.Requests,
 		}), nil
 }
 

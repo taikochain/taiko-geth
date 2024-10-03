@@ -77,7 +77,7 @@ type prestateTracerConfig struct {
 	DisableStorage bool `json:"disableStorage"` // If true, this tracer will not return the contract storage
 }
 
-func newPrestateTracer(ctx *tracers.Context, cfg json.RawMessage, chainConfig *params.ChainConfig) (*tracers.Tracer, error) {
+func newPrestateTracer(ctx *tracers.Context, cfg json.RawMessage) (*tracers.Tracer, error) {
 	var config prestateTracerConfig
 	if err := json.Unmarshal(cfg, &config); err != nil {
 		return nil, err
@@ -212,6 +212,27 @@ func (t *prestateTracer) processDiffState() {
 		postAccount := &account{Storage: make(map[common.Hash]common.Hash)}
 		newBalance := t.env.StateDB.GetBalance(addr).ToBig()
 		newNonce := t.env.StateDB.GetNonce(addr)
+		newCode := t.env.StateDB.GetCode(addr)
+
+func (t *prestateTracer) OnTxEnd(receipt *types.Receipt, err error) {
+	if err != nil {
+		return
+	}
+	if t.config.DiffMode {
+		t.processDiffState()
+	}
+}
+
+func (t *prestateTracer) processDiffState() {
+	for addr, state := range t.pre {
+		// The deleted account's state is pruned from `post` but kept in `pre`
+		if _, ok := t.deleted[addr]; ok {
+			continue
+		}
+		modified := false
+		postAccount := &account{Storage: make(map[common.Hash]common.Hash)}
+		newBalance := t.env.StateDB.GetBalance(addr).ToBig()
+		newNonce := t.env.StateDB.GetNonce(addr)
 
 		if newBalance.Cmp(t.pre[addr].Balance) != 0 {
 			modified = true
@@ -272,13 +293,6 @@ func (t *prestateTracer) lookupAccount(addr common.Address) {
 	}
 	if !acc.exists() {
 		acc.empty = true
-	}
-	// The code must be fetched first for the emptiness check.
-	if t.config.DisableCode {
-		acc.Code = nil
-	}
-	if !t.config.DisableStorage {
-		acc.Storage = make(map[common.Hash]common.Hash)
 	}
 	t.pre[addr] = acc
 }

@@ -22,7 +22,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/tracing"
-	"github.com/ethereum/go-ethereum/params"
 )
 
 // Context contains some contextual infos for a transaction execution that is not
@@ -45,8 +44,8 @@ type Tracer struct {
 	Stop func(err error)
 }
 
-type ctorFn func(*Context, json.RawMessage, *params.ChainConfig) (*Tracer, error)
-type jsCtorFn func(string, *Context, json.RawMessage, *params.ChainConfig) (*Tracer, error)
+type ctorFn func(*Context, json.RawMessage) (*Tracer, error)
+type jsCtorFn func(string, *Context, json.RawMessage) (*Tracer, error)
 
 type elem struct {
 	ctor ctorFn
@@ -79,10 +78,7 @@ func (d *directory) RegisterJSEval(f jsCtorFn) {
 // New returns a new instance of a tracer, by iterating through the
 // registered lookups. Name is either name of an existing tracer
 // or an arbitrary JS code.
-func (d *directory) New(name string, ctx *Context, cfg json.RawMessage, chainConfig *params.ChainConfig) (*Tracer, error) {
-	if len(cfg) == 0 {
-		cfg = json.RawMessage("{}")
-	}
+func (d *directory) New(name string, ctx *Context, cfg json.RawMessage) (*Tracer, error) {
 	if elem, ok := d.elems[name]; ok {
 		return elem.ctor(ctx, cfg, chainConfig)
 	}

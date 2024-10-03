@@ -335,7 +335,11 @@ func (t *Type) isArray() bool {
 // typeName returns the canonical name of the type. If the type is 'Person[]' or 'Person[2]', then
 // this method returns 'Person'
 func (t *Type) typeName() string {
-	return strings.Split(t.Type, "[")[0]
+	if strings.Contains(t.Type, "[") {
+		re := regexp.MustCompile(`\[\d*\]`)
+		return re.ReplaceAllString(t.Type, "")
+	}
+	return t.Type
 }
 
 type Types map[string][]Type
@@ -386,7 +390,7 @@ func (typedData *TypedData) HashStruct(primaryType string, data TypedDataMessage
 
 // Dependencies returns an array of custom types ordered by their hierarchical reference tree
 func (typedData *TypedData) Dependencies(primaryType string, found []string) []string {
-	primaryType = strings.Split(primaryType, "[")[0]
+	primaryType = strings.TrimSuffix(primaryType, "[]")
 
 	if slices.Contains(found, primaryType) {
 		return found
@@ -887,8 +891,7 @@ func init() {
 
 // Checks if the primitive value is valid
 func isPrimitiveTypeValid(primitiveType string) bool {
-	input := strings.Split(primitiveType, "[")[0]
-	_, ok := validPrimitiveTypes[input]
+	_, ok := validPrimitiveTypes[primitiveType]
 	return ok
 }
 

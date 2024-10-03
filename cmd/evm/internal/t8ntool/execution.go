@@ -69,12 +69,8 @@ type ExecutionResult struct {
 	WithdrawalsRoot      *common.Hash          `json:"withdrawalsRoot,omitempty"`
 	CurrentExcessBlobGas *math.HexOrDecimal64  `json:"currentExcessBlobGas,omitempty"`
 	CurrentBlobGasUsed   *math.HexOrDecimal64  `json:"blobGasUsed,omitempty"`
-	RequestsHash         *common.Hash          `json:"requestsHash,omitempty"`
-	Requests             [][]byte              `json:"requests,omitempty"`
-}
-
-type executionResultMarshaling struct {
-	Requests []hexutil.Bytes `json:"requests,omitempty"`
+	RequestsHash         *common.Hash          `json:"requestsRoot,omitempty"`
+	DepositRequests      *types.Deposits       `json:"depositRequests,omitempty"`
 }
 
 type ommer struct {
@@ -132,7 +128,7 @@ type rejectedTx struct {
 // Apply applies a set of transactions to a pre-state
 func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig,
 	txIt txIterator, miningReward int64,
-	getTracerFn func(txIndex int, txHash common.Hash, chainConfig *params.ChainConfig) (*tracers.Tracer, io.WriteCloser, error)) (*state.StateDB, *ExecutionResult, []byte, error) {
+	getTracerFn func(txIndex int, txHash common.Hash) (*tracers.Tracer, io.WriteCloser, error)) (*state.StateDB, *ExecutionResult, []byte, error) {
 	// Capture errors for BLOCKHASH operation, if we haven't been supplied the
 	// required blockhashes
 	var hashError error
@@ -242,7 +238,7 @@ func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig,
 				continue
 			}
 		}
-		tracer, traceOutput, err := getTracerFn(txIndex, tx.Hash(), chainConfig)
+		tracer, traceOutput, err := getTracerFn(txIndex, tx.Hash())
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -408,17 +404,28 @@ func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig,
 		execRs.CurrentExcessBlobGas = (*math.HexOrDecimal64)(&excessBlobGas)
 		execRs.CurrentBlobGasUsed = (*math.HexOrDecimal64)(&blobGasUsed)
 	}
-	if requests != nil {
-		// Set requestsHash on block.
-		h := types.CalcRequestsHash(requests)
-		execRs.RequestsHash = &h
-		for i := range requests {
-			// remove prefix
-			requests[i] = requests[i][1:]
+	if chainConfig.IsPrague(vmContext.BlockNumber, vmContext.Time) {
+		// Parse the requests from the logs
+		var allLogs []*types.Log
+		for _, receipt := range receipts {
+			allLogs = append(allLogs, receipt.Logs...)
 		}
-		execRs.Requests = requests
+		requests, err := core.ParseDepositLogs(allLogs, chainConfig)
+		if err != nil {
+			return nil, nil, nil, NewError(ErrorEVM, fmt.Errorf("could not parse requests logs: %v", err))
+		}
+		// Calculate the requests root
+		h := types.DeriveSha(requests, trie.NewStackTrie(nil))
+		execRs.RequestsHash = &h
+		// Get the deposits from the requests
+		deposits := make(types.Deposits, 0)
+		for _, req := range requests {
+			if dep, ok := req.Inner().(*types.Deposit); ok {
+				deposits = append(deposits, dep)
+			}
+		}
+		execRs.DepositRequests = &deposits
 	}
-
 	// Re-create statedb instance with new root upon the updated database
 	// for accessing latest states.
 	statedb, err = state.New(root, statedb.Database())

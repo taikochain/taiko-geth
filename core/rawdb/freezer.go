@@ -58,9 +58,8 @@ const freezerTableSize = 2 * 1000 * 1000 * 1000
 // - The append-only nature ensures that disk writes are minimized.
 // - The in-order data ensures that disk reads are always optimized.
 type Freezer struct {
-	datadir string
-	frozen  atomic.Uint64 // Number of items already frozen
-	tail    atomic.Uint64 // Number of the first stored item in the freezer
+	frozen atomic.Uint64 // Number of items already frozen
+	tail   atomic.Uint64 // Number of the first stored item in the freezer
 
 	// This lock synchronizes writers and the truncate operation, as well as
 	// the "atomic" (batched) read operations.

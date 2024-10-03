@@ -87,7 +87,7 @@ func NewCommitteeChain(db ethdb.KeyValueStore, config *params.ChainConfig, signe
 }
 
 // NewTestCommitteeChain creates a new CommitteeChain for testing.
-func NewTestCommitteeChain(db ethdb.KeyValueStore, config *params.ChainConfig, signerThreshold int, enforceTime bool, clock *mclock.Simulated) *CommitteeChain {
+func NewTestCommitteeChain(db ethdb.KeyValueStore, config *types.ChainConfig, signerThreshold int, enforceTime bool, clock *mclock.Simulated) *CommitteeChain {
 	return newCommitteeChain(db, config, signerThreshold, enforceTime, dummyVerifier{}, clock, func() int64 { return int64(clock.Now()) })
 }
 

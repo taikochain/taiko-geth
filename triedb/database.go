@@ -56,10 +56,6 @@ var VerkleDefaults = &Config{
 // backend defines the methods needed to access/update trie nodes in different
 // state scheme.
 type backend interface {
-	// NodeReader returns a reader for accessing trie nodes within the specified state.
-	// An error will be returned if the specified state is not available.
-	NodeReader(root common.Hash) (database.NodeReader, error)
-
 	// Initialized returns an indicator if the state data is already initialized
 	// according to the state scheme.
 	Initialized(genesisRoot common.Hash) bool
@@ -77,6 +73,10 @@ type backend interface {
 
 	// Close closes the trie database backend and releases all held resources.
 	Close() error
+
+	// Reader returns a reader for accessing all trie nodes with provided state
+	// root. An error will be returned if the requested state is not available.
+	Reader(root common.Hash) (database.Reader, error)
 }
 
 // Database is the wrapper of the underlying backend which is shared by different
@@ -116,10 +116,10 @@ func NewDatabase(diskdb ethdb.Database, config *Config) *Database {
 	return db
 }
 
-// NodeReader returns a reader for accessing trie nodes within the specified state.
-// An error will be returned if the specified state is not available.
-func (db *Database) NodeReader(blockRoot common.Hash) (database.NodeReader, error) {
-	return db.backend.NodeReader(blockRoot)
+// Reader returns a reader for accessing all trie nodes with provided state root.
+// An error will be returned if the requested state is not available.
+func (db *Database) Reader(blockRoot common.Hash) (database.Reader, error) {
+	return db.backend.Reader(blockRoot)
 }
 
 // Update performs a state transition by committing dirty nodes contained in the

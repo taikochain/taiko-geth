@@ -23,6 +23,8 @@ import (
 )
 
 func TestPathExpansion(t *testing.T) {
+	t.Parallel()
+
 	user, _ := user.Current()
 	var tests map[string]string
 

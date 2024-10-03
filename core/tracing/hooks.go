@@ -43,7 +43,6 @@ type StateDB interface {
 	GetNonce(common.Address) uint64
 	GetCode(common.Address) []byte
 	GetState(common.Address, common.Hash) common.Hash
-	GetTransientState(common.Address, common.Hash) common.Hash
 	Exist(common.Address) bool
 	GetRefund() uint64
 }
@@ -55,8 +54,9 @@ type VMContext struct {
 	Time        uint64
 	Random      *common.Hash
 	// Effective tx gas price
-	GasPrice *big.Int
-	StateDB  StateDB
+	GasPrice    *big.Int
+	ChainConfig *params.ChainConfig
+	StateDB     StateDB
 }
 
 // BlockEvent is emitted upon tracing an incoming block.
@@ -245,6 +245,11 @@ const (
 	// account within the same tx (captured at end of tx).
 	// Note it doesn't account for a self-destruct which appoints itself as recipient.
 	BalanceDecreaseSelfdestructBurn BalanceChangeReason = 14
+
+	// CHANGE(taiko)
+	// BalanceIncreaseDaoContract is ether sent to the DAO refund contract.
+	BalanceIncreaseTreasury       BalanceChangeReason = 99
+	BalanceIncreaseBaseFeeSharing BalanceChangeReason = 100
 )
 
 // GasChangeReason is used to indicate the reason for a gas change, useful

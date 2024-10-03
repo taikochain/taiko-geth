@@ -347,7 +347,7 @@ func (beacon *Beacon) Prepare(chain consensus.ChainHeaderReader, header *types.H
 }
 
 // Finalize implements consensus.Engine and processes withdrawals on top.
-func (beacon *Beacon) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state vm.StateDB, body *types.Body) {
+func (beacon *Beacon) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, body *types.Body) {
 	if !beacon.IsPoSHeader(header) {
 		beacon.ethone.Finalize(chain, header, state, body)
 		return
@@ -398,25 +398,21 @@ func (beacon *Beacon) FinalizeAndAssemble(chain consensus.ChainHeaderReader, hea
 		if parent == nil {
 			return nil, fmt.Errorf("nil parent header for block %d", header.Number)
 		}
+
 		preTrie, err := state.Database().OpenTrie(parent.Root)
 		if err != nil {
 			return nil, fmt.Errorf("error opening pre-state tree root: %w", err)
 		}
+
 		vktPreTrie, okpre := preTrie.(*trie.VerkleTrie)
 		vktPostTrie, okpost := state.GetTrie().(*trie.VerkleTrie)
-
-		// The witness is only attached iff both parent and current block are
-		// using verkle tree.
 		if okpre && okpost {
 			if len(keys) > 0 {
-				verkleProof, stateDiff, err := vktPreTrie.Proof(vktPostTrie, keys)
+				verkleProof, stateDiff, err := vktPreTrie.Proof(vktPostTrie, keys, vktPreTrie.FlatdbNodeResolver)
 				if err != nil {
 					return nil, fmt.Errorf("error generating verkle proof for block %d: %w", header.Number, err)
 				}
-				block = block.WithWitness(&types.ExecutionWitness{
-					StateDiff:   stateDiff,
-					VerkleProof: verkleProof,
-				})
+				block = block.WithWitness(&types.ExecutionWitness{StateDiff: stateDiff, VerkleProof: verkleProof})
 			}
 		}
 	}

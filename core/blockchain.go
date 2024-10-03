@@ -1542,7 +1542,7 @@ func (bc *BlockChain) writeBlockAndSetHead(block *types.Block, receipts []*types
 
 	// Reorganise the chain if the parent is not the head block
 	if block.ParentHash() != currentBlock.Hash() {
-		if err := bc.reorg(currentBlock, block.Header()); err != nil {
+		if err := bc.reorg(currentBlock, block); err != nil {
 			return NonStatTy, err
 		}
 	}
@@ -1550,7 +1550,7 @@ func (bc *BlockChain) writeBlockAndSetHead(block *types.Block, receipts []*types
 	// Set new head.
 	bc.writeHeadBlock(block)
 
-	bc.chainFeed.Send(ChainEvent{Header: block.Header()})
+	bc.chainFeed.Send(ChainEvent{Block: block, Hash: block.Hash(), Logs: logs})
 	if len(logs) > 0 {
 		bc.logsFeed.Send(logs)
 	}
@@ -1560,7 +1560,7 @@ func (bc *BlockChain) writeBlockAndSetHead(block *types.Block, receipts []*types
 	// we will fire an accumulated ChainHeadEvent and disable fire
 	// event here.
 	if emitHeadEvent {
-		bc.chainHeadFeed.Send(ChainHeadEvent{Header: block.Header()})
+		bc.chainHeadFeed.Send(ChainHeadEvent{Block: block})
 	}
 	return CanonStatTy, nil
 }
@@ -1774,6 +1774,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, setHead bool, makeWitness 
 		if err != nil {
 			return nil, it.index, err
 		}
+		statedb.SetLogger(bc.logger)
 
 		// If we are past Byzantium, enable prefetching to pull in trie node paths
 		// while processing transactions. Before Byzantium the prefetcher is mostly
@@ -2258,8 +2259,21 @@ func (bc *BlockChain) reorg(oldHead *types.Header, newHead *types.Header) error 
 	// reads should be blocked until the mutation is complete.
 	bc.txLookupLock.Lock()
 
-	// Reorg can be executed, start reducing the chain's old blocks and appending
-	// the new blocks
+	// Insert the new chain segment in incremental order, from the old
+	// to the new. The new chain head (newChain[0]) is not inserted here,
+	// as it will be handled separately outside of this function
+	for i := len(newChain) - 1; i >= 1; i-- {
+		// Insert the block in the canonical way, re-writing history
+		bc.writeHeadBlock(newChain[i])
+
+		// Collect the new added transactions.
+		for _, tx := range newChain[i].Transactions() {
+			addedTxs = append(addedTxs, tx.Hash())
+		}
+	}
+
+	// Delete useless indexes right now which includes the non-canonical
+	// transaction indexes, canonical chain indexes which above the head.
 	var (
 		deletedTxs []common.Hash
 		rebirthTxs []common.Hash
@@ -2285,7 +2299,32 @@ func (bc *BlockChain) reorg(oldHead *types.Header, newHead *types.Header) error 
 				deletedLogs = nil
 			}
 		}
-		if len(deletedLogs) > 0 {
+		rawdb.DeleteCanonicalHash(indexesBatch, i)
+	}
+	if err := indexesBatch.Write(); err != nil {
+		log.Crit("Failed to delete useless indexes", "err", err)
+	}
+	// Reset the tx lookup cache to clear stale txlookup cache.
+	bc.txLookupCache.Purge()
+
+	// Release the tx-lookup lock after mutation.
+	bc.txLookupLock.Unlock()
+
+	// Send out events for logs from the old canon chain, and 'reborn'
+	// logs from the new canon chain. The number of logs can be very
+	// high, so the events are sent in batches of size around 512.
+
+	// Deleted logs + blocks:
+	var deletedLogs []*types.Log
+	for i := len(oldChain) - 1; i >= 0; i-- {
+		// Also send event for blocks removed from the canon chain.
+		bc.chainSideFeed.Send(ChainSideEvent{Block: oldChain[i]})
+
+		// Collect deleted logs for notification
+		if logs := bc.collectLogs(oldChain[i], true); len(logs) > 0 {
+			deletedLogs = append(deletedLogs, logs...)
+		}
+		if len(deletedLogs) > 512 {
 			bc.rmLogsFeed.Send(RemovedLogsEvent{deletedLogs})
 		}
 	}

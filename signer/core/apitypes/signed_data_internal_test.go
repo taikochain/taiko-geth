@@ -250,42 +250,45 @@ func TestConvertAddressDataToSlice(t *testing.T) {
 func TestTypedDataArrayValidate(t *testing.T) {
 	t.Parallel()
 
-	type testDataInput struct {
-		Name        string           `json:"name"`
-		Domain      TypedDataDomain  `json:"domain"`
-		PrimaryType string           `json:"primaryType"`
-		Types       Types            `json:"types"`
-		Message     TypedDataMessage `json:"data"`
-		Digest      string           `json:"digest"`
+	typedData := TypedData{
+		Types: Types{
+			"BulkOrder": []Type{
+				// Should be able to accept fixed size arrays
+				{Name: "tree", Type: "OrderComponents[2][2]"},
+			},
+			"OrderComponents": []Type{
+				{Name: "offerer", Type: "address"},
+				{Name: "amount", Type: "uint8"},
+			},
+			"EIP712Domain": []Type{
+				{Name: "name", Type: "string"},
+				{Name: "version", Type: "string"},
+				{Name: "chainId", Type: "uint8"},
+				{Name: "verifyingContract", Type: "address"},
+			},
+		},
+		PrimaryType: "BulkOrder",
+		Domain: TypedDataDomain{
+			VerifyingContract: "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC",
+		},
+		Message: TypedDataMessage{},
 	}
-	fc, err := os.ReadFile("./testdata/typed-data.json")
-	require.NoError(t, err, "error reading test data file")
 
-	var tests []testDataInput
-	err = json.Unmarshal(fc, &tests)
-	require.NoError(t, err, "error unmarshalling test data file contents")
+	if err := typedData.validate(); err != nil {
+		t.Errorf("expected typed data to pass validation, got: %v", err)
+	}
 
-	for _, tc := range tests {
-		t.Run(tc.Name, func(t *testing.T) {
-			t.Parallel()
+	// Should be able to accept dynamic arrays
+	typedData.Types["BulkOrder"][0].Type = "OrderComponents[]"
 
-			td := TypedData{
-				Types:       tc.Types,
-				PrimaryType: tc.PrimaryType,
-				Domain:      tc.Domain,
-				Message:     tc.Message,
-			}
+	if err := typedData.validate(); err != nil {
+		t.Errorf("expected typed data to pass validation, got: %v", err)
+	}
 
-			domainSeparator, tErr := td.HashStruct("EIP712Domain", td.Domain.Map())
-			assert.NoError(t, tErr, "failed to hash domain separator: %v", tErr)
+	// Should be able to accept standard types
+	typedData.Types["BulkOrder"][0].Type = "OrderComponents"
 
-			messageHash, tErr := td.HashStruct(td.PrimaryType, td.Message)
-			assert.NoError(t, tErr, "failed to hash message: %v", tErr)
-
-			digest := crypto.Keccak256Hash([]byte(fmt.Sprintf("%s%s%s", "\x19\x01", string(domainSeparator), string(messageHash))))
-			assert.Equal(t, tc.Digest, digest.String(), "digest doesn't not match")
-
-			assert.NoError(t, td.validate(), "validation failed", tErr)
-		})
+	if err := typedData.validate(); err != nil {
+		t.Errorf("expected typed data to pass validation, got: %v", err)
 	}
 }

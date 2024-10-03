@@ -25,6 +25,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/trie/trienode"
+	"github.com/ethereum/go-ethereum/trie/triestate"
 )
 
 // diskLayer is a low level persistent layer built on top of a key-value store.
@@ -106,22 +108,22 @@ func (dl *diskLayer) node(owner common.Hash, path []byte, depth int) ([]byte, co
 	// layer as stale.
 	n, found := dl.buffer.node(owner, path)
 	if found {
-		dirtyNodeHitMeter.Mark(1)
-		dirtyNodeReadMeter.Mark(int64(len(n.Blob)))
+		dirtyHitMeter.Mark(1)
+		dirtyReadMeter.Mark(int64(len(n.Blob)))
 		dirtyNodeHitDepthHist.Update(int64(depth))
 		return n.Blob, n.Hash, &nodeLoc{loc: locDirtyCache, depth: depth}, nil
 	}
-	dirtyNodeMissMeter.Mark(1)
+	dirtyMissMeter.Mark(1)
 
 	// Try to retrieve the trie node from the clean memory cache
 	h := newHasher()
 	defer h.release()
 
-	key := nodeCacheKey(owner, path)
-	if dl.nodes != nil {
-		if blob := dl.nodes.Get(nil, key); len(blob) > 0 {
-			cleanNodeHitMeter.Mark(1)
-			cleanNodeReadMeter.Mark(int64(len(blob)))
+	key := cacheKey(owner, path)
+	if dl.cleans != nil {
+		if blob := dl.cleans.Get(nil, key); len(blob) > 0 {
+			cleanHitMeter.Mark(1)
+			cleanReadMeter.Mark(int64(len(blob)))
 			return blob, h.hash(blob), &nodeLoc{loc: locCleanCache, depth: depth}, nil
 		}
 		cleanNodeMissMeter.Mark(1)
@@ -133,9 +135,9 @@ func (dl *diskLayer) node(owner common.Hash, path []byte, depth int) ([]byte, co
 	} else {
 		blob = rawdb.ReadStorageTrieNode(dl.db.diskdb, owner, path)
 	}
-	if dl.nodes != nil && len(blob) > 0 {
-		dl.nodes.Set(key, blob)
-		cleanNodeWriteMeter.Mark(int64(len(blob)))
+	if dl.cleans != nil && len(blob) > 0 {
+		dl.cleans.Set(key, blob)
+		cleanWriteMeter.Mark(int64(len(blob)))
 	}
 	return blob, h.hash(blob), &nodeLoc{loc: locDiskLayer, depth: depth}, nil
 }

@@ -28,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/trie/triestate"
 	"golang.org/x/exp/maps"
 )
 
@@ -244,12 +245,12 @@ type history struct {
 // newHistory constructs the state history object with provided state change set.
 func newHistory(root common.Hash, parent common.Hash, block uint64, accounts map[common.Address][]byte, storages map[common.Address]map[common.Hash][]byte) *history {
 	var (
-		accountList = maps.Keys(accounts)
+		accountList = maps.Keys(states.Accounts)
 		storageList = make(map[common.Address][]common.Hash)
 	)
 	slices.SortFunc(accountList, common.Address.Cmp)
 
-	for addr, slots := range storages {
+	for addr, slots := range states.Storages {
 		slist := maps.Keys(slots)
 		slices.SortFunc(slist, common.Hash.Cmp)
 		storageList[addr] = slist

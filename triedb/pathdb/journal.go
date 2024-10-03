@@ -47,6 +47,32 @@ var (
 // - Version 1: storage.Incomplete field is removed
 const journalVersion uint64 = 1
 
+// journalNode represents a trie node persisted in the journal.
+type journalNode struct {
+	Path []byte // Path of the node in the trie
+	Blob []byte // RLP-encoded trie node blob, nil means the node is deleted
+}
+
+// journalNodes represents a list trie nodes belong to a single account
+// or the main account trie.
+type journalNodes struct {
+	Owner common.Hash
+	Nodes []journalNode
+}
+
+// journalAccounts represents a list accounts belong to the layer.
+type journalAccounts struct {
+	Addresses []common.Address
+	Accounts  [][]byte
+}
+
+// journalStorage represents a list of storage slots belong to an account.
+type journalStorage struct {
+	Account common.Address
+	Hashes  []common.Hash
+	Slots   [][]byte
+}
+
 // loadJournal tries to parse the layer journal from the disk.
 func (db *Database) loadJournal(diskRoot common.Hash) (layer, error) {
 	journal := rawdb.ReadTrieJournal(db.diskdb)
@@ -164,7 +190,34 @@ func (db *Database) loadDiffLayer(parent layer, r *rlp.Stream) (layer, error) {
 	if err := stateSet.decode(r); err != nil {
 		return nil, err
 	}
-	return db.loadDiffLayer(newDiffLayer(parent, root, parent.stateID()+1, block, &nodes, &stateSet), r)
+	// Read state changes from journal
+	var (
+		jaccounts journalAccounts
+		jstorages []journalStorage
+		accounts  = make(map[common.Address][]byte)
+		storages  = make(map[common.Address]map[common.Hash][]byte)
+	)
+	if err := r.Decode(&jaccounts); err != nil {
+		return nil, fmt.Errorf("load diff accounts: %v", err)
+	}
+	for i, addr := range jaccounts.Addresses {
+		accounts[addr] = jaccounts.Accounts[i]
+	}
+	if err := r.Decode(&jstorages); err != nil {
+		return nil, fmt.Errorf("load diff storages: %v", err)
+	}
+	for _, entry := range jstorages {
+		set := make(map[common.Hash][]byte)
+		for i, h := range entry.Hashes {
+			if len(entry.Slots[i]) > 0 {
+				set[h] = entry.Slots[i]
+			} else {
+				set[h] = nil
+			}
+		}
+		storages[entry.Account] = set
+	}
+	return db.loadDiffLayer(newDiffLayer(parent, root, parent.stateID()+1, block, nodes, triestate.New(accounts, storages)), r)
 }
 
 // journal implements the layer interface, marshaling the un-flushed trie nodes
@@ -218,7 +271,19 @@ func (dl *diffLayer) journal(w io.Writer) error {
 	if err := dl.states.encode(w); err != nil {
 		return err
 	}
-	log.Debug("Journaled pathdb diff layer", "root", dl.root, "parent", dl.parent.rootHash(), "id", dl.stateID(), "block", dl.block)
+	storage := make([]journalStorage, 0, len(dl.states.Storages))
+	for addr, slots := range dl.states.Storages {
+		entry := journalStorage{Account: addr}
+		for slotHash, slot := range slots {
+			entry.Hashes = append(entry.Hashes, slotHash)
+			entry.Slots = append(entry.Slots, slot)
+		}
+		storage = append(storage, entry)
+	}
+	if err := rlp.Encode(w, storage); err != nil {
+		return err
+	}
+	log.Debug("Journaled pathdb diff layer", "root", dl.root, "parent", dl.parent.rootHash(), "id", dl.stateID(), "block", dl.block, "nodes", len(dl.nodes))
 	return nil
 }
 

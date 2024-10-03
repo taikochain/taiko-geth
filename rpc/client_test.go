@@ -568,8 +568,6 @@ func (b *unsubscribeBlocker) readBatch() ([]*jsonrpcMessage, bool, error) {
 // not respond.
 // It reproducers the issue https://github.com/ethereum/go-ethereum/issues/30156
 func TestUnsubscribeTimeout(t *testing.T) {
-	t.Parallel()
-
 	srv := NewServer()
 	srv.RegisterName("nftest", new(notificationTestService))
 

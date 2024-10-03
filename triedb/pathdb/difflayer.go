@@ -87,10 +87,13 @@ func (dl *diffLayer) node(owner common.Hash, path []byte, depth int) ([]byte, co
 	// If the trie node is known locally, return it
 	n, ok := dl.nodes.node(owner, path)
 	if ok {
-		dirtyNodeHitMeter.Mark(1)
-		dirtyNodeHitDepthHist.Update(int64(depth))
-		dirtyNodeReadMeter.Mark(int64(len(n.Blob)))
-		return n.Blob, n.Hash, &nodeLoc{loc: locDiffLayer, depth: depth}, nil
+		n, ok := subset[string(path)]
+		if ok {
+			dirtyHitMeter.Mark(1)
+			dirtyNodeHitDepthHist.Update(int64(depth))
+			dirtyReadMeter.Mark(int64(len(n.Blob)))
+			return n.Blob, n.Hash, &nodeLoc{loc: locDiffLayer, depth: depth}, nil
+		}
 	}
 	// Trie node unknown to this layer, resolve from parent
 	return dl.parent.node(owner, path, depth+1)

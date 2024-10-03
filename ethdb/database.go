@@ -182,6 +182,11 @@ type ResettableAncientStore interface {
 // Database contains all the methods required by the high level database to not
 // only access the key-value data store but also the ancient chain store.
 type Database interface {
-	KeyValueStore
-	AncientStore
+	Reader
+	Writer
+	Batcher
+	Iteratee
+	Stater
+	Compacter
+	io.Closer
 }

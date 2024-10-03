@@ -212,7 +212,7 @@ WARNING: This is a low-level operation which may cause database corruption!`,
 		Name:      "inspect-history",
 		Usage:     "Inspect the state history within block range",
 		ArgsUsage: "<address> [OPTIONAL <storage-slot>]",
-		Flags: slices.Concat([]cli.Flag{
+		Flags: flags.Merge([]cli.Flag{
 			utils.SyncModeFlag,
 			&cli.Uint64Flag{
 				Name:  "start",

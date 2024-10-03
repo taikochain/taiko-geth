@@ -61,26 +61,27 @@ func setDefaults(cfg *Config) {
 			cancunTime   = uint64(0)
 		)
 		cfg.ChainConfig = &params.ChainConfig{
-			ChainID:                 big.NewInt(1),
-			HomesteadBlock:          new(big.Int),
-			DAOForkBlock:            new(big.Int),
-			DAOForkSupport:          false,
-			EIP150Block:             new(big.Int),
-			EIP155Block:             new(big.Int),
-			EIP158Block:             new(big.Int),
-			ByzantiumBlock:          new(big.Int),
-			ConstantinopleBlock:     new(big.Int),
-			PetersburgBlock:         new(big.Int),
-			IstanbulBlock:           new(big.Int),
-			MuirGlacierBlock:        new(big.Int),
-			BerlinBlock:             new(big.Int),
-			LondonBlock:             new(big.Int),
-			ArrowGlacierBlock:       nil,
-			GrayGlacierBlock:        nil,
-			TerminalTotalDifficulty: big.NewInt(0),
-			MergeNetsplitBlock:      nil,
-			ShanghaiTime:            &shanghaiTime,
-			CancunTime:              &cancunTime}
+			ChainID:                       big.NewInt(1),
+			HomesteadBlock:                new(big.Int),
+			DAOForkBlock:                  new(big.Int),
+			DAOForkSupport:                false,
+			EIP150Block:                   new(big.Int),
+			EIP155Block:                   new(big.Int),
+			EIP158Block:                   new(big.Int),
+			ByzantiumBlock:                new(big.Int),
+			ConstantinopleBlock:           new(big.Int),
+			PetersburgBlock:               new(big.Int),
+			IstanbulBlock:                 new(big.Int),
+			MuirGlacierBlock:              new(big.Int),
+			BerlinBlock:                   new(big.Int),
+			LondonBlock:                   new(big.Int),
+			ArrowGlacierBlock:             nil,
+			GrayGlacierBlock:              nil,
+			TerminalTotalDifficulty:       big.NewInt(0),
+			TerminalTotalDifficultyPassed: true,
+			MergeNetsplitBlock:            nil,
+			ShanghaiTime:                  &shanghaiTime,
+			CancunTime:                    &cancunTime}
 	}
 	if cfg.Difficulty == nil {
 		cfg.Difficulty = new(big.Int)
@@ -108,7 +109,10 @@ func setDefaults(cfg *Config) {
 	if cfg.BlobBaseFee == nil {
 		cfg.BlobBaseFee = big.NewInt(params.BlobTxMinBlobGasprice)
 	}
-	cfg.Random = &(common.Hash{})
+	// Merge indicators
+	if t := cfg.ChainConfig.ShanghaiTime; cfg.ChainConfig.TerminalTotalDifficultyPassed || (t != nil && *t == 0) {
+		cfg.Random = &(common.Hash{})
+	}
 }
 
 // Execute executes the code using the input as call data during the execution.

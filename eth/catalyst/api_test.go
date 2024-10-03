@@ -452,6 +452,7 @@ func startEthService(t *testing.T, genesis *core.Genesis, blocks []*types.Block)
 	}
 
 	mcfg := miner.DefaultConfig
+	mcfg.PendingFeeRecipient = testAddr
 	ethcfg := &ethconfig.Config{Genesis: genesis, SyncMode: downloader.FullSync, TrieTimeout: time.Minute, TrieDirtyCache: 256, TrieCleanCache: 256, Miner: mcfg}
 	ethservice, err := eth.New(n, ethcfg)
 	if err != nil {
@@ -503,8 +504,8 @@ func setupBlocks(t *testing.T, ethservice *eth.Ethereum, n int, parent *types.He
 			h = &beaconRoots[i]
 		}
 
-		envelope := getNewEnvelope(t, api, parent, w, h)
-		execResp, err := api.newPayload(*envelope.ExecutionPayload, []common.Hash{}, h, envelope.Requests, false)
+		payload := getNewPayload(t, api, parent, w, h)
+		execResp, err := api.newPayload(*payload, []common.Hash{}, h, false)
 		if err != nil {
 			t.Fatalf("can't execute payload: %v", err)
 		}
@@ -756,7 +757,7 @@ func TestEmptyBlocks(t *testing.T) {
 	}
 }
 
-func getNewEnvelope(t *testing.T, api *ConsensusAPI, parent *types.Header, withdrawals []*types.Withdrawal, beaconRoot *common.Hash) *engine.ExecutionPayloadEnvelope {
+func getNewPayload(t *testing.T, api *ConsensusAPI, parent *types.Header, withdrawals []*types.Withdrawal, beaconRoot *common.Hash) *engine.ExecutableData {
 	params := engine.PayloadAttributes{
 		Timestamp:             parent.Time + 1,
 		Random:                crypto.Keccak256Hash([]byte{byte(1)}),
@@ -1558,7 +1559,7 @@ func TestGetBlockBodiesByRangeInvalidParams(t *testing.T) {
 	}
 }
 
-func checkEqualBody(a *types.Body, b *engine.ExecutionPayloadBody) error {
+func equalBody(a *types.Body, b *engine.ExecutionPayloadBody) bool {
 	if a == nil && b == nil {
 		return nil
 	} else if a == nil || b == nil {
@@ -1573,10 +1574,23 @@ func checkEqualBody(a *types.Body, b *engine.ExecutionPayloadBody) error {
 			return fmt.Errorf("transaction %d mismatch", i)
 		}
 	}
+
 	if !reflect.DeepEqual(a.Withdrawals, b.Withdrawals) {
-		return fmt.Errorf("withdrawals mismatch")
+		return false
 	}
-	return nil
+
+	var deposits types.Deposits
+	if a.Requests != nil {
+		// If requests is non-nil, it means deposits are available in block and we
+		// should return an empty slice instead of nil if there are no deposits.
+		deposits = make(types.Deposits, 0)
+	}
+	for _, r := range a.Requests {
+		if d, ok := r.Inner().(*types.Deposit); ok {
+			deposits = append(deposits, d)
+		}
+	}
+	return reflect.DeepEqual(deposits, b.Deposits)
 }
 
 func TestBlockToPayloadWithBlobs(t *testing.T) {
@@ -1597,7 +1611,7 @@ func TestBlockToPayloadWithBlobs(t *testing.T) {
 	}
 
 	block := types.NewBlock(&header, &types.Body{Transactions: txs}, nil, trie.NewStackTrie(nil))
-	envelope := engine.BlockToExecutableData(block, nil, sidecars, nil)
+	envelope := engine.BlockToExecutableData(block, nil, sidecars)
 	var want int
 	for _, tx := range txs {
 		want += len(tx.BlobHashes())
@@ -1701,7 +1715,7 @@ func TestParentBeaconBlockRoot(t *testing.T) {
 }
 
 func TestWitnessCreationAndConsumption(t *testing.T) {
-	//log.SetDefault(log.NewLogger(log.NewTerminalHandlerWithLevel(colorable.NewColorableStderr(), log.LevelTrace, true)))
+	log.SetDefault(log.NewLogger(log.NewTerminalHandlerWithLevel(colorable.NewColorableStderr(), log.LevelTrace, true)))
 
 	genesis, blocks := generateMergeChain(10, true)
 
@@ -1733,6 +1747,9 @@ func TestWitnessCreationAndConsumption(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error preparing payload, err=%v", err)
 	}
+	// Give the payload some time to be built
+	time.Sleep(100 * time.Millisecond)
+
 	payloadID := (&miner.BuildPayloadArgs{
 		Parent:       fcState.HeadBlockHash,
 		Timestamp:    blockParams.Timestamp,
@@ -1742,7 +1759,7 @@ func TestWitnessCreationAndConsumption(t *testing.T) {
 		BeaconRoot:   blockParams.BeaconRoot,
 		Version:      engine.PayloadV3,
 	}).Id()
-	envelope, err := api.getPayload(payloadID, true)
+	envelope, err := api.GetPayloadV3(payloadID)
 	if err != nil {
 		t.Fatalf("error getting payload, err=%v", err)
 	}

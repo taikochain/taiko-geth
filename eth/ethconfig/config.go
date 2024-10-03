@@ -139,6 +139,9 @@ type Config struct {
 	VMTrace           string
 	VMTraceJsonConfig string
 
+	// Miscellaneous options
+	DocRoot string `toml:"-"`
+
 	// RPCGasCap is the global gas cap for eth-call variants.
 	RPCGasCap uint64
 
@@ -164,7 +167,12 @@ func CreateConsensusEngine(config *params.ChainConfig, db ethdb.Database) (conse
 	if config.Taiko {
 		return taiko.New(config), nil
 	}
-	// If proof-of-authority is requested, set it up
+	// Geth v1.14.0 dropped support for non-merged networks in any consensus
+	// mode. If such a network is requested, reject startup.
+	if !config.TerminalTotalDifficultyPassed {
+		return nil, errors.New("only PoS networks are supported, please transition old ones with Geth v1.13.x")
+	}
+	// Wrap previously supported consensus engines into their post-merge counterpart
 	if config.Clique != nil {
 		return beacon.New(clique.New(config.Clique, db)), nil
 	}

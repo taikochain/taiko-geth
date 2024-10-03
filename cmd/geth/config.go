@@ -43,6 +43,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/naoina/toml"
 	"github.com/urfave/cli/v2"
@@ -243,7 +244,7 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 		// Start blsync mode.
 		srv := rpc.NewServer()
 		srv.RegisterName("engine", catalyst.NewConsensusAPI(eth))
-		blsyncer := blsync.NewClient(utils.MakeBeaconLightConfig(ctx))
+		blsyncer := blsync.NewClient(ctx)
 		blsyncer.SetEngineRPC(rpc.DialInProc(srv))
 		stack.RegisterLifecycle(blsyncer)
 	} else {

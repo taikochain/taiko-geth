@@ -22,14 +22,12 @@ import (
 	"fmt"
 	"math/big"
 	"slices"
-	"sync"
 
 	"github.com/dop251/goja"
 	"github.com/ethereum/go-ethereum/core/tracing"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/eth/tracers/internal"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -48,10 +46,10 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	type ctorFn = func(*tracers.Context, json.RawMessage, *params.ChainConfig) (*tracers.Tracer, error)
+	type ctorFn = func(*tracers.Context, json.RawMessage) (*tracers.Tracer, error)
 	lookup := func(code string) ctorFn {
-		return func(ctx *tracers.Context, cfg json.RawMessage, chainConfig *params.ChainConfig) (*tracers.Tracer, error) {
-			return newJsTracer(code, ctx, cfg, chainConfig)
+		return func(ctx *tracers.Context, cfg json.RawMessage) (*tracers.Tracer, error) {
+			return newJsTracer(code, ctx, cfg)
 		}
 	}
 	for name, code := range assetTracers {
@@ -112,7 +110,6 @@ func fromBuf(vm *goja.Runtime, bufType goja.Value, buf goja.Value, allowString b
 type jsTracer struct {
 	vm                *goja.Runtime
 	env               *tracing.VMContext
-	chainConfig       *params.ChainConfig
 	toBig             toBigFn               // Converts a hex string into a JS bigint
 	toBuf             toBufFn               // Converts a []byte into a JS buffer
 	fromBuf           fromBufFn             // Converts an array, hex string or Uint8Array to a []byte
@@ -149,7 +146,7 @@ type jsTracer struct {
 // The methods `result` and `fault` are required to be present.
 // The methods `step`, `enter`, and `exit` are optional, but note that
 // `enter` and `exit` always go together.
-func newJsTracer(code string, ctx *tracers.Context, cfg json.RawMessage, chainConfig *params.ChainConfig) (*tracers.Tracer, error) {
+func newJsTracer(code string, ctx *tracers.Context, cfg json.RawMessage) (*tracers.Tracer, error) {
 	vm := goja.New()
 	// By default field names are exported to JS as is, i.e. capitalized.
 	vm.SetFieldNameMapper(goja.UncapFieldNameMapper())
@@ -256,7 +253,7 @@ func (t *jsTracer) OnTxStart(env *tracing.VMContext, tx *types.Transaction, from
 	db := &dbObj{db: env.StateDB, vm: t.vm, toBig: t.toBig, toBuf: t.toBuf, fromBuf: t.fromBuf}
 	t.dbValue = db.setupObject()
 	// Update list of precompiles based on current block
-	rules := t.chainConfig.Rules(env.BlockNumber, env.Random != nil, env.Time)
+	rules := env.ChainConfig.Rules(env.BlockNumber, env.Random != nil, env.Time)
 	t.activePrecompiles = vm.ActivePrecompiles(rules)
 	t.ctx["block"] = t.vm.ToValue(t.env.BlockNumber.Uint64())
 	t.ctx["gas"] = t.vm.ToValue(tx.Gas())

@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/beacon/engine"
-	"github.com/ethereum/go-ethereum/beacon/params"
 	"github.com/ethereum/go-ethereum/beacon/types"
 	"github.com/ethereum/go-ethereum/common"
 	ctypes "github.com/ethereum/go-ethereum/core/types"
@@ -32,14 +31,14 @@ import (
 )
 
 type engineClient struct {
-	config     *params.ClientConfig
+	config     *lightClientConfig
 	rpc        *rpc.Client
 	rootCtx    context.Context
 	cancelRoot context.CancelFunc
 	wg         sync.WaitGroup
 }
 
-func startEngineClient(config *params.ClientConfig, rpc *rpc.Client, headCh <-chan types.ChainHeadEvent) *engineClient {
+func startEngineClient(config *lightClientConfig, rpc *rpc.Client, headCh <-chan types.ChainHeadEvent) *engineClient {
 	ctx, cancel := context.WithCancel(context.Background())
 	ec := &engineClient{
 		config:     config,
@@ -93,7 +92,7 @@ func (ec *engineClient) updateLoop(headCh <-chan types.ChainHeadEvent) {
 }
 
 func (ec *engineClient) callNewPayload(fork string, event types.ChainHeadEvent) (string, error) {
-	execData := engine.BlockToExecutableData(event.Block, nil, nil, nil).ExecutionPayload
+	execData := engine.BlockToExecutableData(event.Block, nil, nil).ExecutionPayload
 
 	var (
 		method string

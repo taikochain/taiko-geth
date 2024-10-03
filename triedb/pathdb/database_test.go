@@ -107,9 +107,9 @@ func newTester(t *testing.T, historyLimit uint64) *tester {
 	var (
 		disk, _ = rawdb.NewDatabaseWithFreezer(rawdb.NewMemoryDatabase(), t.TempDir(), "", false)
 		db      = New(disk, &Config{
-			StateHistory:    historyLimit,
-			CleanCacheSize:  16 * 1024,
-			WriteBufferSize: 16 * 1024,
+			StateHistory:   historyLimit,
+			CleanCacheSize: 16 * 1024,
+			DirtyCacheSize: 16 * 1024,
 		}, false)
 		obj = &tester{
 			db:           db,
@@ -309,7 +309,7 @@ func (t *tester) generate(parent common.Hash) (common.Hash, *trienode.MergedNode
 			delete(t.storages, addrHash)
 		}
 	}
-	return root, ctx.nodes, NewStateSetWithOrigin(ctx.accountOrigin, ctx.storageOrigin)
+	return root, ctx.nodes, triestate.New(ctx.accountOrigin, ctx.storageOrigin)
 }
 
 // lastHash returns the latest root hash, or empty if nothing is cached.

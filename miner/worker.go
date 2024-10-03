@@ -76,7 +76,6 @@ type newPayloadResult struct {
 	sidecars []*types.BlobTxSidecar // collected blobs of blob transactions
 	stateDB  *state.StateDB         // StateDB after executing the transactions
 	receipts []*types.Receipt       // Receipts collected during construction
-	requests [][]byte               // Consensus layer requests collected during block construction
 	witness  *stateless.Witness     // Witness is an optional stateless proof
 }
 
@@ -90,6 +89,8 @@ type generateParams struct {
 	withdrawals types.Withdrawals // List of withdrawals to include in block (shanghai field)
 	beaconRoot  *common.Hash      // The beacon root (cancun field).
 	noTxs       bool              // Flag whether an empty block without any transaction is expected
+	// CHANGE(taiko): The base fee per gas for the next block, used by the legacy Taiko blocks.
+	baseFeePerGas *big.Int
 }
 
 // generateWork generates a sealing block based on the given parameters.
@@ -116,31 +117,14 @@ func (miner *Miner) generateWork(params *generateParams, witness bool) *newPaylo
 	for _, r := range work.receipts {
 		allLogs = append(allLogs, r.Logs...)
 	}
-
-	// Collect consensus-layer requests if Prague is enabled.
-	var requests [][]byte
+	// Read requests if Prague is enabled.
 	if miner.chainConfig.IsPrague(work.header.Number, work.header.Time) {
-		// EIP-6110 deposits
-		depositRequests, err := core.ParseDepositLogs(allLogs, miner.chainConfig)
+		requests, err := core.ParseDepositLogs(allLogs, miner.chainConfig)
 		if err != nil {
 			return &newPayloadResult{err: err}
 		}
-		requests = append(requests, depositRequests)
-		// create EVM for system calls
-		blockContext := core.NewEVMBlockContext(work.header, miner.chain, &work.header.Coinbase)
-		vmenv := vm.NewEVM(blockContext, vm.TxContext{}, work.state, miner.chainConfig, vm.Config{})
-		// EIP-7002 withdrawals
-		withdrawalRequests := core.ProcessWithdrawalQueue(vmenv, work.state)
-		requests = append(requests, withdrawalRequests)
-		// EIP-7251 consolidations
-		consolidationRequests := core.ProcessConsolidationQueue(vmenv, work.state)
-		requests = append(requests, consolidationRequests)
+		body.Requests = requests
 	}
-	if requests != nil {
-		reqHash := types.CalcRequestsHash(requests)
-		work.header.RequestsHash = &reqHash
-	}
-
 	block, err := miner.engine.FinalizeAndAssemble(miner.chain, work.header, work.state, &body, work.receipts)
 	if err != nil {
 		return &newPayloadResult{err: err}
@@ -151,7 +135,6 @@ func (miner *Miner) generateWork(params *generateParams, witness bool) *newPaylo
 		sidecars: work.sidecars,
 		stateDB:  work.state,
 		receipts: work.receipts,
-		requests: requests,
 		witness:  work.witness,
 	}
 }
@@ -176,10 +159,17 @@ func (miner *Miner) prepareWork(genParams *generateParams, witness bool) (*envir
 	// to parent+1 if the mutation is allowed.
 	timestamp := genParams.timestamp
 	if parent.Time >= timestamp {
-		if genParams.forceTime {
-			return nil, fmt.Errorf("invalid timestamp, parent %d given %d", parent.Time, timestamp)
+		// CHANGE(taiko): block.timestamp == parent.timestamp is allowed in Taiko protocol.
+		if !miner.chainConfig.Taiko {
+			if genParams.forceTime {
+				return nil, fmt.Errorf("invalid timestamp, parent %d given %d", parent.Time, timestamp)
+			}
+			timestamp = parent.Time + 1
+		} else {
+			if parent.Time > timestamp {
+				return nil, fmt.Errorf("invalid timestamp, parent %d given %d", parent.Time, timestamp)
+			}
 		}
-		timestamp = parent.Time + 1
 	}
 	// Construct the sealing block header.
 	header := &types.Header{
@@ -199,10 +189,14 @@ func (miner *Miner) prepareWork(genParams *generateParams, witness bool) (*envir
 	}
 	// Set baseFee and GasLimit if we are on an EIP-1559 chain
 	if miner.chainConfig.IsLondon(header.Number) {
-		header.BaseFee = eip1559.CalcBaseFee(miner.chainConfig, parent)
-		if !miner.chainConfig.IsLondon(parent.Number) {
-			parentGasLimit := parent.GasLimit * miner.chainConfig.ElasticityMultiplier()
-			header.GasLimit = core.CalcGasLimit(parentGasLimit, miner.config.GasCeil)
+		if miner.chainConfig.Taiko && genParams.baseFeePerGas != nil {
+			header.BaseFee = genParams.baseFeePerGas
+		} else {
+			header.BaseFee = eip1559.CalcBaseFee(miner.chainConfig, parent)
+			if !miner.chainConfig.IsLondon(parent.Number) {
+				parentGasLimit := parent.GasLimit * miner.chainConfig.ElasticityMultiplier()
+				header.GasLimit = core.CalcGasLimit(parentGasLimit, miner.config.GasCeil)
+			}
 		}
 	}
 	// Run the consensus preparation with the default or customized consensus engine.
@@ -420,114 +414,6 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 		}
 	}
 	return nil
-}
-
-// generateParams wraps various of settings for generating sealing task.
-type generateParams struct {
-	timestamp   uint64            // The timestamp for sealing task
-	forceTime   bool              // Flag whether the given timestamp is immutable or not
-	parentHash  common.Hash       // Parent block hash, empty means the latest chain head
-	coinbase    common.Address    // The fee recipient address for including transaction
-	random      common.Hash       // The randomness generated by beacon chain, empty before the merge
-	withdrawals types.Withdrawals // List of withdrawals to include in block.
-	beaconRoot  *common.Hash      // The beacon root (cancun field).
-	noTxs       bool              // Flag whether an empty block without any transaction is expected
-	// CHANGE(taiko): The base fee per gas for the next block, used by the legacy Taiko blocks.
-	baseFeePerGas *big.Int
-}
-
-// prepareWork constructs the sealing task according to the given parameters,
-// either based on the last chain head or specified parent. In this function
-// the pending transactions are not filled yet, only the empty task returned.
-func (w *worker) prepareWork(genParams *generateParams) (*environment, error) {
-	w.mu.RLock()
-	defer w.mu.RUnlock()
-
-	// Find the parent block for sealing task
-	parent := w.chain.CurrentBlock()
-	if genParams.parentHash != (common.Hash{}) {
-		block := w.chain.GetBlockByHash(genParams.parentHash)
-		if block == nil {
-			return nil, fmt.Errorf("missing parent")
-		}
-		parent = block.Header()
-	}
-	// Sanity check the timestamp correctness, recap the timestamp
-	// to parent+1 if the mutation is allowed.
-	timestamp := genParams.timestamp
-	if parent.Time >= timestamp {
-		// CHANGE(taiko): block.timestamp == parent.timestamp is allowed in Taiko protocol.
-		if !w.chainConfig.Taiko {
-			if genParams.forceTime {
-				return nil, fmt.Errorf("invalid timestamp, parent %d given %d", parent.Time, timestamp)
-			}
-			timestamp = parent.Time + 1
-		} else {
-			if parent.Time > timestamp {
-				return nil, fmt.Errorf("invalid timestamp, parent %d given %d", parent.Time, timestamp)
-			}
-		}
-	}
-	// Construct the sealing block header.
-	header := &types.Header{
-		ParentHash: parent.Hash(),
-		Number:     new(big.Int).Add(parent.Number, common.Big1),
-		GasLimit:   core.CalcGasLimit(parent.GasLimit, w.config.GasCeil),
-		Time:       timestamp,
-		Coinbase:   genParams.coinbase,
-	}
-	// Set the extra field.
-	if len(w.extra) != 0 {
-		header.Extra = w.extra
-	}
-	// Set the randomness field from the beacon chain if it's available.
-	if genParams.random != (common.Hash{}) {
-		header.MixDigest = genParams.random
-	}
-	// Set baseFee and GasLimit if we are on an EIP-1559 chain
-	if w.chainConfig.IsLondon(header.Number) {
-		if w.chainConfig.Taiko && genParams.baseFeePerGas != nil {
-			header.BaseFee = genParams.baseFeePerGas
-		} else {
-			header.BaseFee = eip1559.CalcBaseFee(w.chainConfig, parent)
-			if !w.chainConfig.IsLondon(parent.Number) {
-				parentGasLimit := parent.GasLimit * w.chainConfig.ElasticityMultiplier()
-				header.GasLimit = core.CalcGasLimit(parentGasLimit, w.config.GasCeil)
-			}
-		}
-	}
-	// Apply EIP-4844, EIP-4788.
-	if w.chainConfig.IsCancun(header.Number, header.Time) {
-		var excessBlobGas uint64
-		if w.chainConfig.IsCancun(parent.Number, parent.Time) {
-			excessBlobGas = eip4844.CalcExcessBlobGas(*parent.ExcessBlobGas, *parent.BlobGasUsed)
-		} else {
-			// For the first post-fork block, both parent.data_gas_used and parent.excess_data_gas are evaluated as 0
-			excessBlobGas = eip4844.CalcExcessBlobGas(0, 0)
-		}
-		header.BlobGasUsed = new(uint64)
-		header.ExcessBlobGas = &excessBlobGas
-		header.ParentBeaconRoot = genParams.beaconRoot
-	}
-	// Run the consensus preparation with the default or customized consensus engine.
-	if err := w.engine.Prepare(w.chain, header); err != nil {
-		log.Error("Failed to prepare header for sealing", "err", err)
-		return nil, err
-	}
-	// Could potentially happen if starting to mine in an odd state.
-	// Note genParams.coinbase can be different with header.Coinbase
-	// since clique algorithm can modify the coinbase field in header.
-	env, err := w.makeEnv(parent, header, genParams.coinbase)
-	if err != nil {
-		log.Error("Failed to create sealing context", "err", err)
-		return nil, err
-	}
-	if header.ParentBeaconRoot != nil {
-		context := core.NewEVMBlockContext(header, w.chain, nil)
-		vmenv := vm.NewEVM(context, vm.TxContext{}, env.state, w.chainConfig, vm.Config{})
-		core.ProcessBeaconBlockRoot(*header.ParentBeaconRoot, vmenv, env.state)
-	}
-	return env, nil
 }
 
 // fillTransactions retrieves the pending transactions from the txpool and fills them

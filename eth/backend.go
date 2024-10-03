@@ -199,7 +199,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		}
 	)
 	if config.VMTrace != "" {
-		traceConfig := json.RawMessage("{}")
+		var traceConfig json.RawMessage
 		if config.VMTraceJsonConfig != "" {
 			traceConfig = json.RawMessage(config.VMTraceJsonConfig)
 		}

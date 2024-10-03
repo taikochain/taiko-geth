@@ -88,7 +88,7 @@ func Sign(hash []byte, prv *ecdsa.PrivateKey) ([]byte, error) {
 		return nil, errors.New("invalid private key")
 	}
 	defer priv.Zero()
-	sig := decred_ecdsa.SignCompact(&priv, hash, false) // ref uncompressed pubkey
+	sig := btc_ecdsa.SignCompact(&priv, hash, false) // ref uncompressed pubkey
 	// Convert to Ethereum signature format with 'recovery id' v at the end.
 	v := sig[0] - 27
 	copy(sig, sig[1:])
@@ -157,11 +157,11 @@ func CompressPubkey(pubkey *ecdsa.PublicKey) []byte {
 
 // S256 returns an instance of the secp256k1 curve.
 func S256() EllipticCurve {
-	return btCurve{secp256k1.S256()}
+	return btCurve{btcec.S256()}
 }
 
 type btCurve struct {
-	*secp256k1.KoblitzCurve
+	*btcec.KoblitzCurve
 }
 
 // Marshal converts a point given as (x, y) into a byte slice.

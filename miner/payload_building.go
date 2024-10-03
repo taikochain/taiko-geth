@@ -69,24 +69,27 @@ func (args *BuildPayloadArgs) Id() engine.PayloadID {
 // the revenue. Therefore, the empty-block here is always available and full-block
 // will be set/updated afterwards.
 type Payload struct {
-	id       engine.PayloadID
-	empty    *types.Block
-	full     *types.Block
-	sidecars []*types.BlobTxSidecar
-	fullFees *big.Int
-	stop     chan struct{}
-	lock     sync.Mutex
-	cond     *sync.Cond
+	id           engine.PayloadID
+	empty        *types.Block
+	emptyWitness *stateless.Witness
+	full         *types.Block
+	fullWitness  *stateless.Witness
+	sidecars     []*types.BlobTxSidecar
+	fullFees     *big.Int
+	stop         chan struct{}
+	lock         sync.Mutex
+	cond         *sync.Cond
 	// CHANGE(taiko): done channel to communicate we shouldnt write to `stop` channel.
 	done chan struct{}
 }
 
 // newPayload initializes the payload object.
-func newPayload(empty *types.Block, emptyRequests [][]byte, witness *stateless.Witness, id engine.PayloadID) *Payload {
+func newPayload(empty *types.Block, witness *stateless.Witness, id engine.PayloadID) *Payload {
 	payload := &Payload{
-		id:    id,
-		empty: empty,
-		stop:  make(chan struct{}),
+		id:           id,
+		empty:        empty,
+		emptyWitness: witness,
+		stop:         make(chan struct{}),
 		// CHANGE(taiko): buffered channel to communicate done to taiko payload builder
 		done: make(chan struct{}, 1),
 	}
@@ -112,7 +115,6 @@ func (payload *Payload) update(r *newPayloadResult, elapsed time.Duration) {
 		payload.full = r.block
 		payload.fullFees = r.fees
 		payload.sidecars = r.sidecars
-		payload.requests = r.requests
 		payload.fullWitness = r.witness
 
 		feesInEther := new(big.Float).Quo(new(big.Float).SetInt(r.fees), big.NewFloat(params.Ether))
@@ -148,14 +150,14 @@ func (payload *Payload) Resolve() *engine.ExecutionPayloadEnvelope {
 		close(payload.stop)
 	}
 	if payload.full != nil {
-		envelope := engine.BlockToExecutableData(payload.full, payload.fullFees, payload.sidecars, payload.requests)
+		envelope := engine.BlockToExecutableData(payload.full, payload.fullFees, payload.sidecars)
 		if payload.fullWitness != nil {
 			envelope.Witness = new(hexutil.Bytes)
 			*envelope.Witness, _ = rlp.EncodeToBytes(payload.fullWitness) // cannot fail
 		}
 		return envelope
 	}
-	envelope := engine.BlockToExecutableData(payload.empty, big.NewInt(0), nil, payload.emptyRequests)
+	envelope := engine.BlockToExecutableData(payload.empty, big.NewInt(0), nil)
 	if payload.emptyWitness != nil {
 		envelope.Witness = new(hexutil.Bytes)
 		*envelope.Witness, _ = rlp.EncodeToBytes(payload.emptyWitness) // cannot fail
@@ -169,7 +171,7 @@ func (payload *Payload) ResolveEmpty() *engine.ExecutionPayloadEnvelope {
 	payload.lock.Lock()
 	defer payload.lock.Unlock()
 
-	envelope := engine.BlockToExecutableData(payload.empty, big.NewInt(0), nil, payload.emptyRequests)
+	envelope := engine.BlockToExecutableData(payload.empty, big.NewInt(0), nil)
 	if payload.emptyWitness != nil {
 		envelope.Witness = new(hexutil.Bytes)
 		*envelope.Witness, _ = rlp.EncodeToBytes(payload.emptyWitness) // cannot fail
@@ -205,7 +207,7 @@ func (payload *Payload) ResolveFull() *engine.ExecutionPayloadEnvelope {
 		}
 		close(payload.stop)
 	}
-	envelope := engine.BlockToExecutableData(payload.full, payload.fullFees, payload.sidecars, payload.requests)
+	envelope := engine.BlockToExecutableData(payload.full, payload.fullFees, payload.sidecars)
 	if payload.fullWitness != nil {
 		envelope.Witness = new(hexutil.Bytes)
 		*envelope.Witness, _ = rlp.EncodeToBytes(payload.fullWitness) // cannot fail
@@ -233,7 +235,7 @@ func (miner *Miner) buildPayload(args *BuildPayloadArgs, witness bool) (*Payload
 		return nil, empty.err
 	}
 	// Construct a payload object for return.
-	payload := newPayload(empty.block, empty.requests, empty.witness, args.Id())
+	payload := newPayload(empty.block, empty.witness, args.Id())
 
 	// Spin up a routine for updating the payload in background. This strategy
 	// can maximum the revenue for including transactions with highest fee.
@@ -263,7 +265,7 @@ func (miner *Miner) buildPayload(args *BuildPayloadArgs, witness bool) (*Payload
 			select {
 			case <-timer.C:
 				// CHANGE(taiko): do not update payload.
-				if w.chainConfig.Taiko {
+				if miner.chainConfig.Taiko {
 					continue
 				}
 				start := time.Now()

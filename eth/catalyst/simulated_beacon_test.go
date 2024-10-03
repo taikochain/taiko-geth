@@ -186,12 +186,11 @@ func TestOnDemandSpam(t *testing.T) {
 	)
 	for {
 		select {
-		case ev := <-chainHeadCh:
-			block := eth.BlockChain().GetBlock(ev.Header.Hash(), ev.Header.Number.Uint64())
-			for _, itx := range block.Transactions() {
+		case evt := <-chainHeadCh:
+			for _, itx := range evt.Block.Transactions() {
 				includedTxs[itx.Hash()] = struct{}{}
 			}
-			for _, iwx := range block.Withdrawals() {
+			for _, iwx := range evt.Block.Withdrawals() {
 				includedWxs = append(includedWxs, iwx.Index)
 			}
 			// ensure all withdrawals/txs included. this will take two blocks b/c number of withdrawals > 10

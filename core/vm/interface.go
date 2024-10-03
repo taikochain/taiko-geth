@@ -33,8 +33,8 @@ type StateDB interface {
 	CreateAccount(common.Address)
 	CreateContract(common.Address)
 
-	SubBalance(common.Address, *uint256.Int, tracing.BalanceChangeReason) uint256.Int
-	AddBalance(common.Address, *uint256.Int, tracing.BalanceChangeReason) uint256.Int
+	SubBalance(common.Address, *uint256.Int, tracing.BalanceChangeReason)
+	AddBalance(common.Address, *uint256.Int, tracing.BalanceChangeReason)
 	GetBalance(common.Address) *uint256.Int
 
 	GetNonce(common.Address) uint64
@@ -51,7 +51,7 @@ type StateDB interface {
 
 	GetCommittedState(common.Address, common.Hash) common.Hash
 	GetState(common.Address, common.Hash) common.Hash
-	SetState(common.Address, common.Hash, common.Hash) common.Hash
+	SetState(common.Address, common.Hash, common.Hash)
 	GetStorageRoot(addr common.Address) common.Hash
 
 	GetTransientState(addr common.Address, key common.Hash) common.Hash
@@ -95,9 +95,6 @@ type StateDB interface {
 	AddPreimage(common.Hash, []byte)
 
 	Witness() *stateless.Witness
-
-	// Finalise must be invoked at the end of a transaction
-	Finalise(bool)
 }
 
 // CallContext provides a basic interface for the EVM calling conventions. The EVM
