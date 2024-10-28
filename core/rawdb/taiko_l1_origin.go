@@ -29,10 +29,14 @@ func l1OriginKey(blockID *big.Int) []byte {
 
 // L1Origin represents a L1Origin of a L2 block.
 type L1Origin struct {
-	BlockID       *big.Int    `json:"blockID" gencodec:"required"`
-	L2BlockHash   common.Hash `json:"l2BlockHash"`
-	L1BlockHeight *big.Int    `json:"l1BlockHeight" gencodec:"required"`
-	L1BlockHash   common.Hash `json:"l1BlockHash" gencodec:"required"`
+	BlockID       *big.Int       `json:"blockID" gencodec:"required"`
+	L2BlockHash   common.Hash    `json:"l2BlockHash"`
+	L1BlockHeight *big.Int       `json:"l1BlockHeight" gencodec:"required"`
+	L1BlockHash   common.Hash    `json:"l1BlockHash" gencodec:"required"`
+	BatchID       *big.Int       `json:"batchID"`
+	EndOfBlock    bool           `json:"endOfBlock"`
+	EndOfPreconf  bool           `json:"endOfPreconf"`
+	Preconfer     common.Address `json:"preconfer"`
 }
 
 type l1OriginMarshaling struct {
