@@ -488,8 +488,10 @@ func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payl
 
 			// Write L1Origin.
 			rawdb.WriteL1Origin(api.eth.ChainDb(), l1Origin.BlockID, l1Origin)
-			// Write the head L1Origin.
-			rawdb.WriteHeadL1Origin(api.eth.ChainDb(), l1Origin.BlockID)
+			// Write the head L1Origin, only when its not a soft block.
+			if l1Origin.BatchID == nil {
+				rawdb.WriteHeadL1Origin(api.eth.ChainDb(), l1Origin.BlockID)
+			}
 
 			return valid(&id), nil
 		}
