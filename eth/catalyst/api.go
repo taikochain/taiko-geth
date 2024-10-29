@@ -446,6 +446,17 @@ func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payl
 	if payloadAttributes != nil {
 		// CHANGE(taiko): create a L2 block by Taiko protocol.
 		if isTaiko {
+			// L1Origin is a required field in PayloadAttributesV1.
+			if payloadAttributes.L1Origin == nil {
+				return valid(nil), engine.InvalidPayloadAttributes.With(errors.New("L1Origin is nil"))
+			}
+			// If its not a softblock creation request, then `L1BlockHash` and `L1BlockHeight` are required.
+			if payloadAttributes.L1Origin.BatchID == nil &&
+				(payloadAttributes.L1Origin.L1BlockHash == (common.Hash{}) ||
+					payloadAttributes.L1Origin.L1BlockHeight == nil) {
+				return valid(nil), engine.InvalidPayloadAttributes.With(errors.New("L1BlockHash or L1BlockHeight is nil"))
+			}
+
 			// No need to check payloadAttribute here, because all its fields are
 			// marked as required.
 			block, err := api.eth.Miner().SealBlockWith(
