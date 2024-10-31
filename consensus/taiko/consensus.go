@@ -132,7 +132,7 @@ func (t *Taiko) verifyHeader(header, parent *types.Header, unixNow int64) error 
 	}
 
 	// If the current block is not a soft block, then check the timestamp.
-	if (l1Origin == nil || l1Origin.L1BlockHeight != nil) && header.Time > uint64(unixNow) {
+	if !l1Origin.IsSoftblock() && header.Time > uint64(unixNow) {
 		return consensus.ErrFutureBlock
 	}
 
