@@ -44,6 +44,19 @@ type l1OriginMarshaling struct {
 	L1BlockHeight *math.HexOrDecimal256
 }
 
+// IsSoftblock returns true if the L1Origin is a softblock.
+func (l *L1Origin) IsSoftblock() bool {
+	if l.BatchID == nil {
+		return true
+	}
+
+	if l.BatchID.Cmp(common.Big0) == 0 && l.Preconfer == (common.Address{}) {
+		return false
+	}
+
+	return true
+}
+
 // WriteL1Origin stores a L1Origin into the database.
 func WriteL1Origin(db ethdb.KeyValueWriter, blockID *big.Int, l1Origin *L1Origin) {
 	data, err := rlp.EncodeToBytes(l1Origin)
