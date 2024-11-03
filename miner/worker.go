@@ -165,10 +165,6 @@ func (miner *Miner) prepareWork(genParams *generateParams, witness bool) (*envir
 				return nil, fmt.Errorf("invalid timestamp, parent %d given %d", parent.Time, timestamp)
 			}
 			timestamp = parent.Time + 1
-		} else {
-			if parent.Time > timestamp {
-				return nil, fmt.Errorf("invalid timestamp, parent %d given %d", parent.Time, timestamp)
-			}
 		}
 	}
 	// Construct the sealing block header.
