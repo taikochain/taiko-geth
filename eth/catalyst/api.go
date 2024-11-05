@@ -450,7 +450,7 @@ func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payl
 			if payloadAttributes.L1Origin == nil {
 				return valid(nil), engine.InvalidPayloadAttributes.With(errors.New("L1Origin is nil"))
 			}
-			// If its not a softblock creation request, then `L1BlockHash` and `L1BlockHeight` are required.
+			// If it's not a softblock creation request, then `L1BlockHash` and `L1BlockHeight` are required.
 			if payloadAttributes.L1Origin.BatchID == nil &&
 				(payloadAttributes.L1Origin.L1BlockHash == (common.Hash{}) ||
 					payloadAttributes.L1Origin.L1BlockHeight == nil) {
