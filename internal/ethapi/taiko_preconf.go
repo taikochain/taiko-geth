@@ -80,7 +80,7 @@ func forward[T any](forwardURL string, method string, params []interface{}) (*T,
 	}
 
 	if rpcResp.Result == nil {
-		log.Info("forwarded request result is nil", "method", method)
+		log.Warn("forwarded request result is nil", "method", method)
 		return nil, nil
 	}
 
