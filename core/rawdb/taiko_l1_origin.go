@@ -69,16 +69,38 @@ func WriteL1Origin(db ethdb.KeyValueWriter, blockID *big.Int, l1Origin *L1Origin
 	}
 }
 
-// ReadL1Origin retrieves the given L2 block's L1Origin from database.
 func ReadL1Origin(db ethdb.KeyValueReader, blockID *big.Int) (*L1Origin, error) {
 	data, _ := db.Get(l1OriginKey(blockID))
 	if len(data) == 0 {
 		return nil, nil
 	}
 
+	// First try to decode the new version (with new fields)
 	l1Origin := new(L1Origin)
+	// TEMP FIX so dont have to redeploy network!
 	if err := rlp.Decode(bytes.NewReader(data), l1Origin); err != nil {
-		return nil, fmt.Errorf("invalid L1Origin RLP bytes: %w", err)
+		// If decoding the new version fails, try to decode the old version (without new fields)
+		oldL1Origin := struct {
+			BlockID       *big.Int    `json:"blockID" gencodec:"required"`
+			L2BlockHash   common.Hash `json:"l2BlockHash"`
+			L1BlockHeight *big.Int    `json:"l1BlockHeight"`
+			L1BlockHash   common.Hash `json:"l1BlockHash"`
+		}{}
+		if err := rlp.Decode(bytes.NewReader(data), &oldL1Origin); err != nil {
+			return nil, fmt.Errorf("invalid L1Origin RLP bytes: %w", err)
+		}
+
+		// If decoding old version succeeds, manually construct the new L1Origin with default values for the new fields
+		l1Origin = &L1Origin{
+			BlockID:       oldL1Origin.BlockID,
+			L2BlockHash:   oldL1Origin.L2BlockHash,
+			L1BlockHeight: oldL1Origin.L1BlockHeight,
+			L1BlockHash:   oldL1Origin.L1BlockHash,
+			BatchID:       new(big.Int),     // default value
+			EndOfBlock:    false,            // default value
+			EndOfPreconf:  false,            // default value
+			Preconfer:     common.Address{}, // default value
+		}
 	}
 
 	return l1Origin, nil
