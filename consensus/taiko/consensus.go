@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -126,16 +127,6 @@ func (t *Taiko) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*type
 }
 
 func (t *Taiko) verifyHeader(header, parent *types.Header, unixNow int64) error {
-	l1Origin, err := rawdb.ReadL1Origin(t.chainDB, header.Number)
-	if err != nil {
-		return err
-	}
-
-	// If the current block is not a soft block, then check the timestamp.
-	if !l1Origin.IsSoftblock() && header.Time > uint64(unixNow) {
-		return consensus.ErrFutureBlock
-	}
-
 	// Ensure that the header's extra-data section is of a reasonable size (<= 32 bytes)
 	if uint64(len(header.Extra)) > params.MaximumExtraDataSize {
 		return fmt.Errorf("extra-data too long: %d > %d", len(header.Extra), params.MaximumExtraDataSize)
@@ -179,6 +170,20 @@ func (t *Taiko) verifyHeader(header, parent *types.Header, unixNow int64) error 
 	// WithdrawalsHash should not be empty
 	if header.WithdrawalsHash == nil {
 		return ErrEmptyWithdrawalsHash
+	}
+
+	l1Origin, err := rawdb.ReadL1Origin(t.chainDB, header.Number)
+	if err != nil {
+		return err
+	}
+
+	if l1Origin == nil {
+		return ethereum.NotFound
+	}
+
+	// If the current block is not a soft block, then check the timestamp.
+	if !l1Origin.IsSoftblock() && header.Time > uint64(unixNow) {
+		return consensus.ErrFutureBlock
 	}
 
 	return nil
