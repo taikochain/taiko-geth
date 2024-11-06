@@ -96,7 +96,6 @@ func ReadL1Origin(db ethdb.KeyValueReader, blockID *big.Int) (*L1Origin, error) 
 			L2BlockHash:   oldL1Origin.L2BlockHash,
 			L1BlockHeight: oldL1Origin.L1BlockHeight,
 			L1BlockHash:   oldL1Origin.L1BlockHash,
-			BatchID:       new(big.Int),     // default value
 			EndOfBlock:    false,            // default value
 			EndOfPreconf:  false,            // default value
 			Preconfer:     common.Address{}, // default value
