@@ -3,6 +3,7 @@ package rawdb
 import (
 	"bytes"
 	"fmt"
+	"github.com/ethereum/go-ethereum"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -73,7 +74,7 @@ func WriteL1Origin(db ethdb.KeyValueWriter, blockID *big.Int, l1Origin *L1Origin
 func ReadL1Origin(db ethdb.KeyValueReader, blockID *big.Int) (*L1Origin, error) {
 	data, _ := db.Get(l1OriginKey(blockID))
 	if len(data) == 0 {
-		return nil, nil
+		return nil, ethereum.NotFound
 	}
 
 	l1Origin := new(L1Origin)

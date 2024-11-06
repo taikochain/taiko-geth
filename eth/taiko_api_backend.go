@@ -39,25 +39,12 @@ func (s *TaikoAPIBackend) HeadL1Origin() (*rawdb.L1Origin, error) {
 		return nil, err
 	}
 
-	if l1Origin == nil {
-		return nil, ethereum.NotFound
-	}
-
 	return l1Origin, nil
 }
 
 // L1OriginByID returns the L2 block's corresponding L1 origin.
 func (s *TaikoAPIBackend) L1OriginByID(blockID *math.HexOrDecimal256) (*rawdb.L1Origin, error) {
-	l1Origin, err := rawdb.ReadL1Origin(s.eth.ChainDb(), (*big.Int)(blockID))
-	if err != nil {
-		return nil, err
-	}
-
-	if l1Origin == nil {
-		return nil, ethereum.NotFound
-	}
-
-	return l1Origin, nil
+	return rawdb.ReadL1Origin(s.eth.ChainDb(), (*big.Int)(blockID))
 }
 
 // GetSyncMode returns the node sync mode.
