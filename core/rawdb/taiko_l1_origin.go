@@ -39,6 +39,14 @@ type L1Origin struct {
 	Preconfer     common.Address `json:"preconfer"`
 }
 
+// L1OriginLegacy represents the legacy L1Origin structure of a L2 block.
+type L1OriginLegacy struct {
+	BlockID       *big.Int    `json:"blockID" gencodec:"required"`
+	L2BlockHash   common.Hash `json:"l2BlockHash"`
+	L1BlockHeight *big.Int    `json:"l1BlockHeight"`
+	L1BlockHash   common.Hash `json:"l1BlockHash"`
+}
+
 type l1OriginMarshaling struct {
 	BlockID       *math.HexOrDecimal256
 	L1BlockHeight *math.HexOrDecimal256
@@ -69,36 +77,34 @@ func WriteL1Origin(db ethdb.KeyValueWriter, blockID *big.Int, l1Origin *L1Origin
 	}
 }
 
+// ReadL1Origin retrieves the L1Origin of the given blockID from the database.
 func ReadL1Origin(db ethdb.KeyValueReader, blockID *big.Int) (*L1Origin, error) {
 	data, _ := db.Get(l1OriginKey(blockID))
 	if len(data) == 0 {
 		return nil, nil
 	}
 
-	// First try to decode the new version (with new fields)
+	// First try to decode the new version (with new fields).
 	l1Origin := new(L1Origin)
-	// TEMP FIX so dont have to redeploy network!
 	if err := rlp.Decode(bytes.NewReader(data), l1Origin); err != nil {
-		// If decoding the new version fails, try to decode the old version (without new fields)
-		oldL1Origin := struct {
-			BlockID       *big.Int    `json:"blockID" gencodec:"required"`
-			L2BlockHash   common.Hash `json:"l2BlockHash"`
-			L1BlockHeight *big.Int    `json:"l1BlockHeight"`
-			L1BlockHash   common.Hash `json:"l1BlockHash"`
-		}{}
-		if err := rlp.Decode(bytes.NewReader(data), &oldL1Origin); err != nil {
-			return nil, fmt.Errorf("invalid L1Origin RLP bytes: %w", err)
+		// If decoding the new version fails, try to decode the legacy version (without new fields).
+		l1OriginLegacy := new(L1OriginLegacy)
+		if err := rlp.Decode(bytes.NewReader(data), &l1OriginLegacy); err != nil {
+			return nil, fmt.Errorf("invalid legacy L1Origin RLP bytes: %w", err)
 		}
 
-		// If decoding old version succeeds, manually construct the new L1Origin with default values for the new fields
+		// If decoding legacy version succeeds, manually
+		// construct the new L1Origin with default values for the new fields.
 		l1Origin = &L1Origin{
-			BlockID:       oldL1Origin.BlockID,
-			L2BlockHash:   oldL1Origin.L2BlockHash,
-			L1BlockHeight: oldL1Origin.L1BlockHeight,
-			L1BlockHash:   oldL1Origin.L1BlockHash,
-			EndOfBlock:    false,            // default value
-			EndOfPreconf:  false,            // default value
-			Preconfer:     common.Address{}, // default value
+			BlockID:       l1OriginLegacy.BlockID,
+			L2BlockHash:   l1OriginLegacy.L2BlockHash,
+			L1BlockHeight: l1OriginLegacy.L1BlockHeight,
+			L1BlockHash:   l1OriginLegacy.L1BlockHash,
+			// default value, as the new fields are not present in the legacy version.
+			BatchID:      nil,
+			EndOfBlock:   false,
+			EndOfPreconf: false,
+			Preconfer:    common.Address{},
 		}
 	}
 
