@@ -2269,7 +2269,7 @@ func (bc *BlockChain) reorg(oldHead *types.Header, newHead *types.Block) error {
 	} else {
 		// len(newChain) == 0 && len(oldChain) > 0
 		// rewind the canonical chain to a lower point.
-		// CHANGE(taiko): use debug log level to avoid logging too many logs when frequently soft block reorg.
+		// CHANGE(taiko): use debug log level to avoid logging too many logs when frequently soft block rollback.
 		log.Debug("Impossible reorg, please file an issue", "oldnum", oldBlock.Number(), "oldhash", oldBlock.Hash(), "oldblocks", len(oldChain), "newnum", newBlock.Number(), "newhash", newBlock.Hash(), "newblocks", len(newChain))
 	}
 	// Acquire the tx-lookup lock before mutation. This step is essential
