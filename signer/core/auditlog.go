@@ -22,11 +22,11 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/signer/core/apitypes"
+	"github.com/tenderly/net-taiko-geth/common"
+	"github.com/tenderly/net-taiko-geth/common/hexutil"
+	"github.com/tenderly/net-taiko-geth/internal/ethapi"
+	"github.com/tenderly/net-taiko-geth/log"
+	"github.com/tenderly/net-taiko-geth/signer/core/apitypes"
 )
 
 type AuditLogger struct {

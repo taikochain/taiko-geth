@@ -23,15 +23,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/trie/trienode"
-	"github.com/ethereum/go-ethereum/trie/triestate"
+	"github.com/tenderly/net-taiko-geth/common"
+	"github.com/tenderly/net-taiko-geth/core/rawdb"
+	"github.com/tenderly/net-taiko-geth/core/types"
+	"github.com/tenderly/net-taiko-geth/crypto"
+	"github.com/tenderly/net-taiko-geth/ethdb"
+	"github.com/tenderly/net-taiko-geth/log"
+	"github.com/tenderly/net-taiko-geth/params"
+	"github.com/tenderly/net-taiko-geth/trie/trienode"
+	"github.com/tenderly/net-taiko-geth/trie/triestate"
 )
 
 const (

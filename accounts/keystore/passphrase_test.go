@@ -20,7 +20,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/tenderly/net-taiko-geth/common"
 )
 
 const (

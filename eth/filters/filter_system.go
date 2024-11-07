@@ -25,17 +25,17 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/lru"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/bloombits"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/tenderly/net-taiko-geth"
+	"github.com/tenderly/net-taiko-geth/common"
+	"github.com/tenderly/net-taiko-geth/common/lru"
+	"github.com/tenderly/net-taiko-geth/core"
+	"github.com/tenderly/net-taiko-geth/core/bloombits"
+	"github.com/tenderly/net-taiko-geth/core/types"
+	"github.com/tenderly/net-taiko-geth/ethdb"
+	"github.com/tenderly/net-taiko-geth/event"
+	"github.com/tenderly/net-taiko-geth/log"
+	"github.com/tenderly/net-taiko-geth/params"
+	"github.com/tenderly/net-taiko-geth/rpc"
 )
 
 // Config represents the configuration of the filter system.

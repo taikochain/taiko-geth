@@ -21,7 +21,7 @@ import (
 	"net"
 	"net/netip"
 
-	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/tenderly/net-taiko-geth/metrics"
 )
 
 const (

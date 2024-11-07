@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/tenderly/net-taiko-geth/rlp"
 )
 
 var (

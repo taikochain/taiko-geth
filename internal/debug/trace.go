@@ -21,7 +21,7 @@ import (
 	"os"
 	"runtime/trace"
 
-	"github.com/ethereum/go-ethereum/log"
+	"github.com/tenderly/net-taiko-geth/log"
 )
 
 // StartGoTrace turns on tracing, writing to the given file.

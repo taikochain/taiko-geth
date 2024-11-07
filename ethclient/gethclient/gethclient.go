@@ -25,12 +25,12 @@ import (
 	"runtime"
 	"runtime/debug"
 
-	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/tenderly/net-taiko-geth"
+	"github.com/tenderly/net-taiko-geth/common"
+	"github.com/tenderly/net-taiko-geth/common/hexutil"
+	"github.com/tenderly/net-taiko-geth/core/types"
+	"github.com/tenderly/net-taiko-geth/p2p"
+	"github.com/tenderly/net-taiko-geth/rpc"
 )
 
 // Client is a wrapper around rpc.Client that implements geth-specific functionality.

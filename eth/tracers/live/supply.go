@@ -7,14 +7,14 @@ import (
 	"math/big"
 	"path/filepath"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/consensus/misc/eip4844"
-	"github.com/ethereum/go-ethereum/core/tracing"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/eth/tracers"
-	"github.com/ethereum/go-ethereum/log"
+	"github.com/tenderly/net-taiko-geth/common"
+	"github.com/tenderly/net-taiko-geth/common/hexutil"
+	"github.com/tenderly/net-taiko-geth/consensus/misc/eip4844"
+	"github.com/tenderly/net-taiko-geth/core/tracing"
+	"github.com/tenderly/net-taiko-geth/core/types"
+	"github.com/tenderly/net-taiko-geth/core/vm"
+	"github.com/tenderly/net-taiko-geth/eth/tracers"
+	"github.com/tenderly/net-taiko-geth/log"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 

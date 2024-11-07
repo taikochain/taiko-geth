@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/trie"
+	"github.com/tenderly/net-taiko-geth/common"
+	"github.com/tenderly/net-taiko-geth/core/types"
+	"github.com/tenderly/net-taiko-geth/trie"
 	"github.com/holiman/uint256"
 	"github.com/protolambda/zrnt/eth2/beacon/capella"
 	zrntcommon "github.com/protolambda/zrnt/eth2/beacon/common"

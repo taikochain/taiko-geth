@@ -22,8 +22,8 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/tenderly/net-taiko-geth/common"
+	"github.com/tenderly/net-taiko-geth/core/types"
 )
 
 // HeaderReader is an interface to pull in headers in place of block hashes for

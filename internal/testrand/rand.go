@@ -21,7 +21,7 @@ import (
 	"encoding/binary"
 	mrand "math/rand"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/tenderly/net-taiko-geth/common"
 )
 
 // prng is a pseudo random number generator seeded by strong randomness.

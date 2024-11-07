@@ -20,10 +20,10 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/forkid"
-	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/tenderly/net-taiko-geth/common"
+	"github.com/tenderly/net-taiko-geth/core/forkid"
+	"github.com/tenderly/net-taiko-geth/p2p"
+	"github.com/tenderly/net-taiko-geth/p2p/enode"
 )
 
 // Tests that handshake failures are detected and reported correctly.

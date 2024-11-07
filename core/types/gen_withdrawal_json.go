@@ -5,8 +5,8 @@ package types
 import (
 	"encoding/json"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/tenderly/net-taiko-geth/common"
+	"github.com/tenderly/net-taiko-geth/common/hexutil"
 )
 
 var _ = (*withdrawalMarshaling)(nil)

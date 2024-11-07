@@ -20,8 +20,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/ethereum/go-ethereum/beacon/merkle"
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/tenderly/net-taiko-geth/beacon/merkle"
+	"github.com/tenderly/net-taiko-geth/common"
 	"github.com/protolambda/zrnt/eth2/beacon/capella"
 	zrntcommon "github.com/protolambda/zrnt/eth2/beacon/common"
 	"github.com/protolambda/zrnt/eth2/beacon/deneb"

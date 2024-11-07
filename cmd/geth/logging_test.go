@@ -30,7 +30,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/internal/reexec"
+	"github.com/tenderly/net-taiko-geth/internal/reexec"
 )
 
 func runSelf(args ...string) ([]byte, error) {

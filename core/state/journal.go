@@ -22,8 +22,8 @@ import (
 	"slices"
 	"sort"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/tenderly/net-taiko-geth/common"
+	"github.com/tenderly/net-taiko-geth/core/types"
 	"github.com/holiman/uint256"
 )
 

@@ -19,7 +19,7 @@ package event_test
 import (
 	"fmt"
 
-	"github.com/ethereum/go-ethereum/event"
+	"github.com/tenderly/net-taiko-geth/event"
 )
 
 func ExampleFeed_acknowledgedEvents() {

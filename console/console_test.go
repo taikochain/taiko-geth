@@ -25,14 +25,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/console/prompt"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/eth"
-	"github.com/ethereum/go-ethereum/eth/ethconfig"
-	"github.com/ethereum/go-ethereum/internal/jsre"
-	"github.com/ethereum/go-ethereum/miner"
-	"github.com/ethereum/go-ethereum/node"
+	"github.com/tenderly/net-taiko-geth/common"
+	"github.com/tenderly/net-taiko-geth/console/prompt"
+	"github.com/tenderly/net-taiko-geth/core"
+	"github.com/tenderly/net-taiko-geth/eth"
+	"github.com/tenderly/net-taiko-geth/eth/ethconfig"
+	"github.com/tenderly/net-taiko-geth/internal/jsre"
+	"github.com/tenderly/net-taiko-geth/miner"
+	"github.com/tenderly/net-taiko-geth/node"
 )
 
 const (

@@ -19,10 +19,10 @@ package state
 import (
 	"maps"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/trie/utils"
+	"github.com/tenderly/net-taiko-geth/common"
+	"github.com/tenderly/net-taiko-geth/common/math"
+	"github.com/tenderly/net-taiko-geth/params"
+	"github.com/tenderly/net-taiko-geth/trie/utils"
 	"github.com/holiman/uint256"
 )
 

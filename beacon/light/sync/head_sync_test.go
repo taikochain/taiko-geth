@@ -19,9 +19,9 @@ package sync
 import (
 	"testing"
 
-	"github.com/ethereum/go-ethereum/beacon/light/request"
-	"github.com/ethereum/go-ethereum/beacon/types"
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/tenderly/net-taiko-geth/beacon/light/request"
+	"github.com/tenderly/net-taiko-geth/beacon/types"
+	"github.com/tenderly/net-taiko-geth/common"
 )
 
 var (

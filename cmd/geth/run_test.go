@@ -23,9 +23,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/internal/cmdtest"
-	"github.com/ethereum/go-ethereum/internal/reexec"
-	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/tenderly/net-taiko-geth/internal/cmdtest"
+	"github.com/tenderly/net-taiko-geth/internal/reexec"
+	"github.com/tenderly/net-taiko-geth/rpc"
 )
 
 type testgeth struct {

@@ -16,7 +16,7 @@
 
 package triestate
 
-import "github.com/ethereum/go-ethereum/common"
+import "github.com/tenderly/net-taiko-geth/common"
 
 // Set represents a collection of mutated states during a state transition.
 // The value refers to the original content of state before the transition

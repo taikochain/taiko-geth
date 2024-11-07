@@ -29,13 +29,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/internal/testlog"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/p2p/discover/v4wire"
-	"github.com/ethereum/go-ethereum/p2p/discover/v5wire"
-	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/ethereum/go-ethereum/p2p/enr"
-	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/tenderly/net-taiko-geth/internal/testlog"
+	"github.com/tenderly/net-taiko-geth/log"
+	"github.com/tenderly/net-taiko-geth/p2p/discover/v4wire"
+	"github.com/tenderly/net-taiko-geth/p2p/discover/v5wire"
+	"github.com/tenderly/net-taiko-geth/p2p/enode"
+	"github.com/tenderly/net-taiko-geth/p2p/enr"
+	"github.com/tenderly/net-taiko-geth/rlp"
 	"github.com/stretchr/testify/require"
 )
 

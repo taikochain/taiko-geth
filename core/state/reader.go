@@ -20,14 +20,14 @@ import (
 	"errors"
 	"maps"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/state/snapshot"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/trie"
-	"github.com/ethereum/go-ethereum/trie/utils"
-	"github.com/ethereum/go-ethereum/triedb"
+	"github.com/tenderly/net-taiko-geth/common"
+	"github.com/tenderly/net-taiko-geth/core/state/snapshot"
+	"github.com/tenderly/net-taiko-geth/core/types"
+	"github.com/tenderly/net-taiko-geth/crypto"
+	"github.com/tenderly/net-taiko-geth/rlp"
+	"github.com/tenderly/net-taiko-geth/trie"
+	"github.com/tenderly/net-taiko-geth/trie/utils"
+	"github.com/tenderly/net-taiko-geth/triedb"
 )
 
 // Reader defines the interface for accessing accounts and storage slots

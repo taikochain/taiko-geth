@@ -20,10 +20,10 @@ import (
 	"net"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common/mclock"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/p2p/enr"
-	"github.com/ethereum/go-ethereum/p2p/nat"
+	"github.com/tenderly/net-taiko-geth/common/mclock"
+	"github.com/tenderly/net-taiko-geth/log"
+	"github.com/tenderly/net-taiko-geth/p2p/enr"
+	"github.com/tenderly/net-taiko-geth/p2p/nat"
 )
 
 const (

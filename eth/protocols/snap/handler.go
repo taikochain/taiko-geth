@@ -21,16 +21,16 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/metrics"
-	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/ethereum/go-ethereum/p2p/enr"
-	"github.com/ethereum/go-ethereum/trie"
-	"github.com/ethereum/go-ethereum/trie/trienode"
+	"github.com/tenderly/net-taiko-geth/common"
+	"github.com/tenderly/net-taiko-geth/core"
+	"github.com/tenderly/net-taiko-geth/core/types"
+	"github.com/tenderly/net-taiko-geth/log"
+	"github.com/tenderly/net-taiko-geth/metrics"
+	"github.com/tenderly/net-taiko-geth/p2p"
+	"github.com/tenderly/net-taiko-geth/p2p/enode"
+	"github.com/tenderly/net-taiko-geth/p2p/enr"
+	"github.com/tenderly/net-taiko-geth/trie"
+	"github.com/tenderly/net-taiko-geth/trie/trienode"
 )
 
 const (

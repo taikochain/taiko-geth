@@ -3,7 +3,7 @@ package params
 import (
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/tenderly/net-taiko-geth/common"
 )
 
 func u64(val uint64) *uint64 { return &val }

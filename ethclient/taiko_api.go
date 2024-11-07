@@ -4,8 +4,8 @@ import (
 	"context"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/tenderly/net-taiko-geth/common/hexutil"
+	"github.com/tenderly/net-taiko-geth/core/rawdb"
 )
 
 // HeadL1Origin returns the latest L2 block's corresponding L1 origin.

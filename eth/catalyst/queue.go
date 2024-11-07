@@ -19,10 +19,10 @@ package catalyst
 import (
 	"sync"
 
-	"github.com/ethereum/go-ethereum/beacon/engine"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/miner"
+	"github.com/tenderly/net-taiko-geth/beacon/engine"
+	"github.com/tenderly/net-taiko-geth/common"
+	"github.com/tenderly/net-taiko-geth/core/types"
+	"github.com/tenderly/net-taiko-geth/miner"
 )
 
 // maxTrackedPayloads is the maximum number of prepared payloads the execution

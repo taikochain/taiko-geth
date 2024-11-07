@@ -24,11 +24,11 @@ import (
 	"regexp"
 	"sort"
 
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/tracing"
-	"github.com/ethereum/go-ethereum/eth/tracers/logger"
-	"github.com/ethereum/go-ethereum/tests"
+	"github.com/tenderly/net-taiko-geth/core"
+	"github.com/tenderly/net-taiko-geth/core/rawdb"
+	"github.com/tenderly/net-taiko-geth/core/tracing"
+	"github.com/tenderly/net-taiko-geth/eth/tracers/logger"
+	"github.com/tenderly/net-taiko-geth/tests"
 	"github.com/urfave/cli/v2"
 )
 

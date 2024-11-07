@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/taikoxyz/taiko-geth/actions/workflows/ci.yml/badge.svg)](https://github.com/taikoxyz/taiko-geth/actions/workflows/ci.yml)
 
-The codebase is based on [go-ethereum v1.14.11](https://github.com/ethereum/go-ethereum/releases/tag/v1.14.11).
+The codebase is based on [go-ethereum v1.14.11](https://github.com/tenderly/net-taiko-geth/releases/tag/v1.14.11).
 
 ## Tracing changes
 
@@ -13,9 +13,9 @@ All source code changes by [taiko](https://taiko.xyz) team are commented with `"
 Golang execution layer implementation of the Ethereum protocol.
 
 [![API Reference](
-https://pkg.go.dev/badge/github.com/ethereum/go-ethereum
-)](https://pkg.go.dev/github.com/ethereum/go-ethereum?tab=doc)
-[![Go Report Card](https://goreportcard.com/badge/github.com/ethereum/go-ethereum)](https://goreportcard.com/report/github.com/ethereum/go-ethereum)
+https://pkg.go.dev/badge/github.com/tenderly/net-taiko-geth
+)](https://pkg.go.dev/github.com/tenderly/net-taiko-geth?tab=doc)
+[![Go Report Card](https://goreportcard.com/badge/github.com/tenderly/net-taiko-geth)](https://goreportcard.com/report/github.com/tenderly/net-taiko-geth)
 [![Travis](https://app.travis-ci.com/ethereum/go-ethereum.svg?branch=master)](https://app.travis-ci.com/github/ethereum/go-ethereum)
 [![Discord](https://img.shields.io/badge/discord-join%20chat-blue.svg)](https://discord.gg/nthXNEv)
 
@@ -354,7 +354,7 @@ testing procedures.
 ### Contributing to geth.ethereum.org
 
 For contributions to the [go-ethereum website](https://geth.ethereum.org), please checkout and raise pull requests against the `website` branch.
-For more detailed instructions please see the `website` branch [README](https://github.com/ethereum/go-ethereum/tree/website#readme) or the
+For more detailed instructions please see the `website` branch [README](https://github.com/tenderly/net-taiko-geth/tree/website#readme) or the
 [contributing](https://geth.ethereum.org/docs/developers/geth-developer/contributing) page of the website.
 
 ## License

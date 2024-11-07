@@ -22,8 +22,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/internal/version"
-	"github.com/ethereum/go-ethereum/params"
+	"github.com/tenderly/net-taiko-geth/internal/version"
+	"github.com/tenderly/net-taiko-geth/params"
 	"github.com/urfave/cli/v2"
 )
 
