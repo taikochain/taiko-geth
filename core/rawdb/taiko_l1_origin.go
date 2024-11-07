@@ -101,7 +101,7 @@ func ReadL1Origin(db ethdb.KeyValueReader, blockID *big.Int) (*L1Origin, error) 
 			L1BlockHeight: l1OriginLegacy.L1BlockHeight,
 			L1BlockHash:   l1OriginLegacy.L1BlockHash,
 			// default value, as the new fields are not present in the legacy version.
-			BatchID:      nil,
+			BatchID:      common.Big0,
 			EndOfBlock:   false,
 			EndOfPreconf: false,
 			Preconfer:    common.Address{},
