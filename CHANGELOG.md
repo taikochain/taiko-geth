@@ -39,8 +39,8 @@
 * **taiko_api:** reduce the frequency of `zlib` compression when fetching txpool content ([#323](https://github.com/taikoxyz/taiko-geth/issues/323)) ([27b4d6e](https://github.com/taikoxyz/taiko-geth/commit/27b4d6ebf9959b096fb6c6ed7f5910fa93a59df3))
 * **taiko_genesis:** update genesis JSONs ([#305](https://github.com/taikoxyz/taiko-geth/issues/305)) ([73df1f1](https://github.com/taikoxyz/taiko-geth/commit/73df1f1a116bdb530c5a8bd7fc20b64b491f2f3c))
 * **taiko_genesis:** update genesis JSONs ([#315](https://github.com/taikoxyz/taiko-geth/issues/315)) ([ae8a194](https://github.com/taikoxyz/taiko-geth/commit/ae8a194c517e39fda7a4c330cd6e5a49a8df3621))
-* **taiko_genesis:** update interanl devnet genesis JSON for ontake hardfork ([#288](https://github.com/taikoxyz/taiko-geth/issues/288)) ([a748b91](https://github.com/taikoxyz/taiko-geth/commit/a748b914abb1b5bc2a25fe40de6e38bb70e4235a))
-* **taiko_genesis:** update interanl devnet genesis JSON for ontake hardfork ([#291](https://github.com/taikoxyz/taiko-geth/issues/291)) ([217c9ec](https://github.com/taikoxyz/taiko-geth/commit/217c9ec0f42f4785b44b8d2dbc4c046eb43e1d02))
+* **taiko_genesis:** update internal devnet genesis JSON for ontake hardfork ([#288](https://github.com/taikoxyz/taiko-geth/issues/288)) ([a748b91](https://github.com/taikoxyz/taiko-geth/commit/a748b914abb1b5bc2a25fe40de6e38bb70e4235a))
+* **taiko_genesis:** update internal devnet genesis JSON for ontake hardfork ([#291](https://github.com/taikoxyz/taiko-geth/issues/291)) ([217c9ec](https://github.com/taikoxyz/taiko-geth/commit/217c9ec0f42f4785b44b8d2dbc4c046eb43e1d02))
 * **taiko_genesis:** update internal devnet genesis JSON ([#285](https://github.com/taikoxyz/taiko-geth/issues/285)) ([b137b2a](https://github.com/taikoxyz/taiko-geth/commit/b137b2ac113dfe899bc538220cbdadf45b24f133))
 * **taiko_genesis:** update internal devnet genesis JSON ([#296](https://github.com/taikoxyz/taiko-geth/issues/296)) ([882a6cd](https://github.com/taikoxyz/taiko-geth/commit/882a6cd3294cd1c74eac37fbc37c54e64f0dc363))
 * **taiko_miner:** add `BuildTransactionsListsWithMinTip` method ([#283](https://github.com/taikoxyz/taiko-geth/issues/283)) ([c777d24](https://github.com/taikoxyz/taiko-geth/commit/c777d24af16915030536564b8cb44346866ab0b1))
@@ -71,7 +71,7 @@
 * typo ([d8a351b](https://github.com/taikoxyz/taiko-geth/commit/d8a351b58f147fc8e1527695ff7a3d19e6f3420b))
 * update link to trezor ([1a79089](https://github.com/taikoxyz/taiko-geth/commit/1a79089193f2046c0cab60954bc05be2f52a2a90))
 * update outdated link to trezor docs ([#28966](https://github.com/taikoxyz/taiko-geth/issues/28966)) ([1a79089](https://github.com/taikoxyz/taiko-geth/commit/1a79089193f2046c0cab60954bc05be2f52a2a90))
-* **wokrer:** fix an issue in `sealBlockWith` ([#240](https://github.com/taikoxyz/taiko-geth/issues/240)) ([02c6ee9](https://github.com/taikoxyz/taiko-geth/commit/02c6ee9672c1b47ac534ec7224f45d9ab0652cdf))
+* **worker:** fix an issue in `sealBlockWith` ([#240](https://github.com/taikoxyz/taiko-geth/issues/240)) ([02c6ee9](https://github.com/taikoxyz/taiko-geth/commit/02c6ee9672c1b47ac534ec7224f45d9ab0652cdf))
 
 ## [1.8.0](https://github.com/taikoxyz/taiko-geth/compare/v1.7.0...v1.8.0) (2024-09-09)
 
@@ -194,4 +194,4 @@
 * typo ([d8a351b](https://github.com/taikoxyz/taiko-geth/commit/d8a351b58f147fc8e1527695ff7a3d19e6f3420b))
 * update link to trezor ([1a79089](https://github.com/taikoxyz/taiko-geth/commit/1a79089193f2046c0cab60954bc05be2f52a2a90))
 * update outdated link to trezor docs ([#28966](https://github.com/taikoxyz/taiko-geth/issues/28966)) ([1a79089](https://github.com/taikoxyz/taiko-geth/commit/1a79089193f2046c0cab60954bc05be2f52a2a90))
-* **wokrer:** fix an issue in `sealBlockWith` ([#240](https://github.com/taikoxyz/taiko-geth/issues/240)) ([02c6ee9](https://github.com/taikoxyz/taiko-geth/commit/02c6ee9672c1b47ac534ec7224f45d9ab0652cdf))
+* **worker:** fix an issue in `sealBlockWith` ([#240](https://github.com/taikoxyz/taiko-geth/issues/240)) ([02c6ee9](https://github.com/taikoxyz/taiko-geth/commit/02c6ee9672c1b47ac534ec7224f45d9ab0652cdf))
