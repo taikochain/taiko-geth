@@ -1,6 +1,6 @@
 ## EIP-1559 testing
 
-This test contains testcases for EIP-1559, which uses a new transaction type and has a new block parameter.
+This test contains test cases for EIP-1559, which uses a new transaction type and has a new block parameter.
 
 ### Prestate
 
