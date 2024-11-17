@@ -10,11 +10,11 @@ the stable version. Switching between release streams requires user intervention
 ## Launchpad
 
 The packages are built and served by launchpad.net. We generate a Debian source package
-for each distribution and upload it. Their builder picks up the source package, builds it
+for each distribution and upload it. Its builder picks up the source package, builds it
 and installs the new version into the PPA repository. Launchpad requires a valid signature
 by a team member for source package uploads.
 
-The signing key is stored in an environment variable which Travis CI makes available to
+The signing key is stored in an environment variable that Travis CI makes available to
 certain builds. Since Travis CI doesn't support FTP, SFTP is used to transfer the
 packages. To set this up yourself, you need to create a Launchpad user and add a GPG key
 and SSH key to it. Then encode both keys as base64 and configure 'secret' environment
