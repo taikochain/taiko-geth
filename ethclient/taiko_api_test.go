@@ -82,7 +82,7 @@ func TestHeadL1Origin(t *testing.T) {
 
 	require.Nil(t, err)
 	require.Equal(t, testL1Origin, l1OriginFound)
-	require.False(t, l1OriginFound.IsSoftblock())
+	require.False(t, l1OriginFound.IsSoftBlock())
 }
 
 func TestL1OriginByID(t *testing.T) {
@@ -111,7 +111,7 @@ func TestL1OriginByID(t *testing.T) {
 
 	require.Nil(t, err)
 	require.Equal(t, testL1Origin, l1OriginFound)
-	require.True(t, l1OriginFound.IsSoftblock())
+	require.True(t, l1OriginFound.IsSoftBlock())
 }
 
 // randomHash generates a random blob of data and returns it as a hash.

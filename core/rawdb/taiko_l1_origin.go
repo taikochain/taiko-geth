@@ -33,10 +33,10 @@ type L1Origin struct {
 	L2BlockHash   common.Hash    `json:"l2BlockHash"`
 	L1BlockHeight *big.Int       `json:"l1BlockHeight"`
 	L1BlockHash   common.Hash    `json:"l1BlockHash"`
-	BatchID       *big.Int       `json:"batchID"`
-	EndOfBlock    bool           `json:"endOfBlock"`
-	EndOfPreconf  bool           `json:"endOfPreconf"`
-	Preconfer     common.Address `json:"preconfer"`
+	BatchID       *big.Int       `json:"batchID" rlp:"optional"`
+	EndOfBlock    bool           `json:"endOfBlock" rlp:"optional"`
+	EndOfPreconf  bool           `json:"endOfPreconf" rlp:"optional"`
+	Preconfer     common.Address `json:"preconfer" rlp:"optional"`
 }
 
 type l1OriginMarshaling struct {
@@ -44,17 +44,12 @@ type l1OriginMarshaling struct {
 	L1BlockHeight *math.HexOrDecimal256
 }
 
-// IsSoftblock returns true if the L1Origin is a softblock.
-func (l *L1Origin) IsSoftblock() bool {
-	if l.BatchID == nil {
+// IsSoftBlock returns true if the L1Origin is a softblock.
+func (l *L1Origin) IsSoftBlock() bool {
+	if l.BatchID != nil {
 		return true
 	}
-
-	if l.BatchID.Cmp(common.Big0) == 0 && l.Preconfer == (common.Address{}) {
-		return false
-	}
-
-	return true
+	return false
 }
 
 // WriteL1Origin stores a L1Origin into the database.
