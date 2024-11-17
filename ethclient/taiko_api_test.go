@@ -69,7 +69,7 @@ func TestHeadL1Origin(t *testing.T) {
 		L2BlockHash:   headerHash,
 		L1BlockHeight: randomBigInt(),
 		L1BlockHash:   randomHash(),
-		BatchID:       common.Big0,
+		BatchID:       nil,
 		EndOfBlock:    false,
 		EndOfPreconf:  false,
 		Preconfer:     common.Address{},
