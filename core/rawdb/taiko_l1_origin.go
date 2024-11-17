@@ -54,10 +54,7 @@ type l1OriginMarshaling struct {
 
 // IsSoftBlock returns true if the L1Origin is a softblock.
 func (l *L1Origin) IsSoftBlock() bool {
-	if l.BatchID != nil {
-		return true
-	}
-	return false
+	return l.BatchID != nil
 }
 
 // WriteL1Origin stores a L1Origin into the database.
