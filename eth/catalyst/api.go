@@ -400,6 +400,10 @@ func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payl
 		// generating the payload. It's a special corner case that a few slots are
 		// missing and we are requested to generate the payload in slot.
 	} else if isTaiko { // CHANGE(taiko): reorg is allowed in L2.
+		head := api.eth.BlockChain().CurrentBlock()
+		for number := head.Number.Uint64(); number > block.NumberU64(); number-- {
+			rawdb.DeleteL1Origin(api.eth.ChainDb(), big.NewInt(int64(number)))
+		}
 		if latestValid, err := api.eth.BlockChain().SetCanonical(block); err != nil {
 			return engine.ForkChoiceResponse{PayloadStatus: engine.PayloadStatusV1{Status: engine.INVALID, LatestValidHash: &latestValid}}, err
 		}

@@ -69,6 +69,11 @@ func WriteL1Origin(db ethdb.KeyValueWriter, blockID *big.Int, l1Origin *L1Origin
 	}
 }
 
+// DeleteL1Origin removes the L1Origin.
+func DeleteL1Origin(db ethdb.KeyValueWriter, blockID *big.Int) {
+	_ = db.Delete(l1OriginKey(blockID))
+}
+
 // ReadL1Origin retrieves the L1Origin of the given blockID from the database.
 func ReadL1Origin(db ethdb.KeyValueReader, blockID *big.Int) (*L1Origin, error) {
 	data, _ := db.Get(l1OriginKey(blockID))
