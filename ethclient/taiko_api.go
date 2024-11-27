@@ -6,8 +6,8 @@ import (
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // HeadL1Origin returns the latest L2 block's corresponding L1 origin.
@@ -46,7 +46,7 @@ func (ec *Client) GetSyncMode(ctx context.Context) (string, error) {
 // CHANGE(taiko):
 // SubscribeNewSoftBlock subscribes to notifications about the current soft block
 // on the given channel.
-func (ec *Client) SubscribeNewSoftBlock(ctx context.Context, ch chan<- *types.Block) (ethereum.Subscription, error) {
+func (ec *Client) SubscribeNewSoftBlock(ctx context.Context, ch chan<- *core.SoftBlockEvent) (ethereum.Subscription, error) {
 	sub, err := ec.c.EthSubscribe(ctx, ch, "newSoftBlocks")
 	if err != nil {
 		return nil, err
