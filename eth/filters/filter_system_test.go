@@ -46,6 +46,7 @@ type testBackend struct {
 	logsFeed        event.Feed
 	rmLogsFeed      event.Feed
 	chainFeed       event.Feed
+	softBlockFeed   event.Feed // CHANGE(taiko): add soft block feed
 	pendingBlock    *types.Block
 	pendingReceipts types.Receipts
 }
@@ -135,6 +136,11 @@ func (b *testBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscript
 
 func (b *testBackend) SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription {
 	return b.chainFeed.Subscribe(ch)
+}
+
+// CHANGE(taiko): add soft block event subscription test
+func (b *testBackend) SubscribeSoftBlockEvent(ch chan<- core.SoftBlockEvent) event.Subscription {
+	return b.softBlockFeed.Subscribe(ch)
 }
 
 func (b *testBackend) BloomStatus() (uint64, uint64) {

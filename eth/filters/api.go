@@ -250,6 +250,66 @@ func (api *FilterAPI) NewHeads(ctx context.Context) (*rpc.Subscription, error) {
 	return rpcSub, nil
 }
 
+// CHANGE(taiko):
+// NewSoftBlockFilter
+func (api *FilterAPI) NewSoftBlockFilter() rpc.ID {
+	var (
+		blocks    = make(chan *types.Block)
+		blocksSub = api.events.SubscribeSoftBlocks(blocks)
+	)
+
+	api.filtersMu.Lock()
+	api.filters[blocksSub.ID] = &filter{typ: SoftBlocksSubscription, deadline: time.NewTimer(api.timeout), hashes: make([]common.Hash, 0), s: blocksSub}
+	api.filtersMu.Unlock()
+
+	go func() {
+		for {
+			select {
+			case h := <-blocks:
+				api.filtersMu.Lock()
+				if f, found := api.filters[blocksSub.ID]; found {
+					f.hashes = append(f.hashes, h.Hash())
+				}
+				api.filtersMu.Unlock()
+			case <-blocksSub.Err():
+				api.filtersMu.Lock()
+				delete(api.filters, blocksSub.ID)
+				api.filtersMu.Unlock()
+				return
+			}
+		}
+	}()
+
+	return blocksSub.ID
+}
+
+// NewSoftBlocks send a notification each time a new (header) block is appended to the chain.
+func (api *FilterAPI) NewSoftBlocks(ctx context.Context) (*rpc.Subscription, error) {
+	notifier, supported := rpc.NotifierFromContext(ctx)
+	if !supported {
+		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
+	}
+
+	rpcSub := notifier.CreateSubscription()
+
+	go func() {
+		blocks := make(chan *types.Block)
+		blocksSub := api.events.SubscribeSoftBlocks(blocks)
+		defer blocksSub.Unsubscribe()
+
+		for {
+			select {
+			case h := <-blocks:
+				notifier.Notify(rpcSub.ID, h)
+			case <-rpcSub.Err():
+				return
+			}
+		}
+	}()
+
+	return rpcSub, nil
+}
+
 // Logs creates a subscription that fires for all new log that match the given filter criteria.
 func (api *FilterAPI) Logs(ctx context.Context, crit FilterCriteria) (*rpc.Subscription, error) {
 	notifier, supported := rpc.NotifierFromContext(ctx)

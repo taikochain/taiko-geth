@@ -72,6 +72,7 @@ type Backend interface {
 	SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription
 	SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) event.Subscription
 	SubscribeChainSideEvent(ch chan<- core.ChainSideEvent) event.Subscription
+	SubscribeSoftBlockEvent(ch chan<- core.SoftBlockEvent) event.Subscription // CHANGE(taiko)
 
 	// Transaction pool API
 	SendTx(ctx context.Context, signedTx *types.Transaction) error

@@ -484,7 +484,15 @@ func (c *Client) Notify(ctx context.Context, method string, args ...interface{})
 
 // EthSubscribe registers a subscription under the "eth" namespace.
 func (c *Client) EthSubscribe(ctx context.Context, channel interface{}, args ...interface{}) (*ClientSubscription, error) {
+	log.Info("EthSubscribe", "args", args)
 	return c.Subscribe(ctx, "eth", channel, args...)
+}
+
+// CHANGE(taiko)
+// TaikoSubscribe registers a subscription under the "taiko" namespace.
+func (c *Client) TaikoSubscribe(ctx context.Context, channel interface{}, args ...interface{}) (*ClientSubscription, error) {
+	log.Info("TaikoSubscribe", "args", args)
+	return c.Subscribe(ctx, "taiko", channel, args...)
 }
 
 // ShhSubscribe registers a subscription under the "shh" namespace.

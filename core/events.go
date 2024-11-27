@@ -17,6 +17,8 @@
 package core
 
 import (
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -41,3 +43,12 @@ type ChainSideEvent struct {
 }
 
 type ChainHeadEvent struct{ Block *types.Block }
+
+// CHANGE(taiko): new event for soft blocks
+type SoftBlockEvent struct {
+	Block        *types.Block
+	BatchID      *big.Int
+	EndOfBlock   bool
+	EndOfPreconf bool
+	Preconfer    common.Address
+}

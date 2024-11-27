@@ -504,6 +504,10 @@ func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payl
 				rawdb.WriteHeadL1Origin(api.eth.ChainDb(), l1Origin.BlockID)
 			}
 
+			if payloadAttributes.L1Origin.BatchID != nil {
+				api.eth.BlockChain().EmitSoftBlock(block, payloadAttributes.L1Origin.BatchID, payloadAttributes.L1Origin.EndOfBlock, payloadAttributes.L1Origin.EndOfPreconf, payloadAttributes.L1Origin.Preconfer)
+			}
+
 			return valid(&id), nil
 		}
 

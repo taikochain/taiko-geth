@@ -284,6 +284,11 @@ func (b *EthAPIBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscri
 	return b.eth.BlockChain().SubscribeLogsEvent(ch)
 }
 
+// CHANGE(taiko)
+func (s *EthAPIBackend) SubscribeSoftBlockEvent(ch chan<- core.SoftBlockEvent) event.Subscription {
+	return s.eth.BlockChain().SubscribeSoftBlockEvent(ch)
+}
+
 func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
 	return b.eth.txPool.Add([]*types.Transaction{signedTx}, true, false)[0]
 }

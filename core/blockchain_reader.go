@@ -445,3 +445,9 @@ func (bc *BlockChain) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscript
 func (bc *BlockChain) SubscribeBlockProcessingEvent(ch chan<- bool) event.Subscription {
 	return bc.scope.Track(bc.blockProcFeed.Subscribe(ch))
 }
+
+// CHANGE(taiko):
+// SubscribeSoftBlockEvent registers a subscription of SoftBlockEvent.
+func (bc *BlockChain) SubscribeSoftBlockEvent(ch chan<- SoftBlockEvent) event.Subscription {
+	return bc.scope.Track(bc.softBlockFeed.Subscribe(ch))
+}

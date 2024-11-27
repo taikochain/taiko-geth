@@ -228,6 +228,7 @@ type BlockChain struct {
 	chainHeadFeed event.Feed
 	logsFeed      event.Feed
 	blockProcFeed event.Feed
+	softBlockFeed event.Feed
 	scope         event.SubscriptionScope
 	genesisBlock  *types.Block
 
@@ -467,6 +468,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, genesis *Genesis
 	if txLookupLimit != nil {
 		bc.txIndexer = newTxIndexer(*txLookupLimit, bc)
 	}
+
 	return bc, nil
 }
 
@@ -1564,6 +1566,7 @@ func (bc *BlockChain) writeBlockAndSetHead(block *types.Block, receipts []*types
 	if emitHeadEvent {
 		bc.chainHeadFeed.Send(ChainHeadEvent{Block: block})
 	}
+
 	return CanonStatTy, nil
 }
 
@@ -2541,4 +2544,17 @@ func (bc *BlockChain) SetTrieFlushInterval(interval time.Duration) {
 // GetTrieFlushInterval gets the in-memory tries flushAlloc interval
 func (bc *BlockChain) GetTrieFlushInterval() time.Duration {
 	return time.Duration(bc.flushInterval.Load())
+}
+
+// CHANGE(taiko): EmitSoftBlock
+// EmitSoftBlock emits a soft block event to the soft block feed.
+func (bc *BlockChain) EmitSoftBlock(block *types.Block, batchId *big.Int, endOfBlock bool, endOfPreconf bool, preconfer common.Address) {
+	nsent := bc.softBlockFeed.Send(SoftBlockEvent{
+		Block:        block,
+		BatchID:      batchId,
+		EndOfBlock:   endOfBlock,
+		EndOfPreconf: endOfPreconf,
+		Preconfer:    preconfer,
+	})
+	log.Info("soft block event emitted", "nsent", nsent)
 }
