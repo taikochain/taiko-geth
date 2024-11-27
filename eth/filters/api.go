@@ -28,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -254,7 +255,7 @@ func (api *FilterAPI) NewHeads(ctx context.Context) (*rpc.Subscription, error) {
 // NewSoftBlockFilter
 func (api *FilterAPI) NewSoftBlockFilter() rpc.ID {
 	var (
-		blocks    = make(chan *types.Block)
+		blocks    = make(chan *core.SoftBlockEvent)
 		blocksSub = api.events.SubscribeSoftBlocks(blocks)
 	)
 
@@ -268,7 +269,7 @@ func (api *FilterAPI) NewSoftBlockFilter() rpc.ID {
 			case h := <-blocks:
 				api.filtersMu.Lock()
 				if f, found := api.filters[blocksSub.ID]; found {
-					f.hashes = append(f.hashes, h.Hash())
+					f.hashes = append(f.hashes, h.Block.Hash())
 				}
 				api.filtersMu.Unlock()
 			case <-blocksSub.Err():
@@ -293,7 +294,7 @@ func (api *FilterAPI) NewSoftBlocks(ctx context.Context) (*rpc.Subscription, err
 	rpcSub := notifier.CreateSubscription()
 
 	go func() {
-		blocks := make(chan *types.Block)
+		blocks := make(chan *core.SoftBlockEvent)
 		blocksSub := api.events.SubscribeSoftBlocks(blocks)
 		defer blocksSub.Unsubscribe()
 

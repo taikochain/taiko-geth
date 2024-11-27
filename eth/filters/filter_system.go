@@ -183,9 +183,9 @@ type subscription struct {
 	logs       chan []*types.Log
 	txs        chan []*types.Transaction
 	headers    chan *types.Header
-	softBlocks chan *types.Block
-	installed  chan struct{} // closed when the filter is installed
-	err        chan error    // closed when the filter is uninstalled
+	softBlocks chan *core.SoftBlockEvent // CHANGE(taiko): Add soft block channel
+	installed  chan struct{}             // closed when the filter is installed
+	err        chan error                // closed when the filter is uninstalled
 }
 
 // EventSystem creates subscriptions, processes events and broadcasts them to the
@@ -341,7 +341,7 @@ func (es *EventSystem) subscribeLogs(crit ethereum.FilterQuery, logs chan []*typ
 		created:    time.Now(),
 		logs:       logs,
 		txs:        make(chan []*types.Transaction),
-		softBlocks: make(chan *types.Block), // CHANGE(taiko): Add soft block channel
+		softBlocks: make(chan *core.SoftBlockEvent), // CHANGE(taiko): Add soft block channel
 		headers:    make(chan *types.Header),
 		installed:  make(chan struct{}),
 		err:        make(chan error),
@@ -358,7 +358,7 @@ func (es *EventSystem) SubscribeNewHeads(headers chan *types.Header) *Subscripti
 		created:    time.Now(),
 		logs:       make(chan []*types.Log),
 		txs:        make(chan []*types.Transaction),
-		softBlocks: make(chan *types.Block), // CHANGE(taiko): Add soft block channel
+		softBlocks: make(chan *core.SoftBlockEvent), // CHANGE(taiko): Add soft block channel
 		headers:    headers,
 		installed:  make(chan struct{}),
 		err:        make(chan error),
@@ -369,7 +369,7 @@ func (es *EventSystem) SubscribeNewHeads(headers chan *types.Header) *Subscripti
 // CHANGE(taiko):
 // SubscribeSoftBlocks creates a subscription that writes the soft block of a block that is
 // imported in the chain.
-func (es *EventSystem) SubscribeSoftBlocks(softBlocks chan *types.Block) *Subscription {
+func (es *EventSystem) SubscribeSoftBlocks(softBlocks chan *core.SoftBlockEvent) *Subscription {
 	sub := &subscription{
 		id:         rpc.NewID(),
 		typ:        SoftBlocksSubscription,
@@ -394,7 +394,7 @@ func (es *EventSystem) SubscribePendingTxs(txs chan []*types.Transaction) *Subsc
 		logs:       make(chan []*types.Log),
 		txs:        txs,
 		headers:    make(chan *types.Header),
-		softBlocks: make(chan *types.Block), // CHANGE(taiko): Add soft block channel
+		softBlocks: make(chan *core.SoftBlockEvent), // CHANGE(taiko): Add soft block channel
 		installed:  make(chan struct{}),
 		err:        make(chan error),
 	}
@@ -431,7 +431,7 @@ func (es *EventSystem) handleChainEvent(filters filterIndex, ev core.ChainEvent)
 // CHANGE(taiko): Handle soft blocks event
 func (es *EventSystem) handleSoftBlockEvent(filters filterIndex, ev core.SoftBlockEvent) {
 	for _, f := range filters[SoftBlocksSubscription] {
-		f.softBlocks <- ev.Block
+		f.softBlocks <- &ev
 	}
 }
 
