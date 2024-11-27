@@ -590,6 +590,11 @@ func (b testBackend) SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) even
 func (b testBackend) SubscribeChainSideEvent(ch chan<- core.ChainSideEvent) event.Subscription {
 	panic("implement me")
 }
+
+// CHANGE(taiko)
+func (b testBackend) SubscribeSoftBlockEvent(ch chan<- core.SoftBlockEvent) event.Subscription {
+	panic("implement me")
+}
 func (b testBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
 	panic("implement me")
 }
