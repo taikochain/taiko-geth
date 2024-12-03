@@ -523,7 +523,7 @@ func (ethash *Ethash) FinalizeAndAssemble(chain consensus.ChainHeaderReader, hea
 	return types.NewBlock(header, &types.Body{Transactions: body.Transactions, Uncles: body.Uncles}, receipts, trie.NewStackTrie(nil)), nil
 }
 
-// CHANGE(taiko): sanme to FinalizeAndAssemble.
+// CHANGE(taiko): same as FinalizeAndAssemble.
 func (ethash *Ethash) FinalizeAndAssembleWithoutAnchorTx(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, body *types.Body, receipts []*types.Receipt) (*types.Block, error) {
 	return ethash.FinalizeAndAssemble(chain, header, state, body, receipts)
 }
