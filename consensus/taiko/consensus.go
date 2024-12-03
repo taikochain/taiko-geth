@@ -253,6 +253,17 @@ func (t *Taiko) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *t
 	return types.NewBlock(header, body, receipts, trie.NewStackTrie(nil)), nil
 }
 
+// CHANGE(taiko): same to FinalizeAndAssemble but just don't validate anchor tx in taiko engine.
+func (t *Taiko) FinalizeAndAssembleWithoutAnchorTx(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, body *types.Body, receipts []*types.Receipt) (*types.Block, error) {
+	if body.Withdrawals == nil {
+		body.Withdrawals = make([]*types.Withdrawal, 0)
+	}
+
+	// Finalize block
+	t.Finalize(chain, header, state, body)
+	return types.NewBlock(header, body, receipts, trie.NewStackTrie(nil)), nil
+}
+
 // Seal generates a new sealing request for the given input block and pushes
 // the result into the given channel.
 //

@@ -125,7 +125,7 @@ func (miner *Miner) generateWork(params *generateParams, witness bool) *newPaylo
 		}
 		body.Requests = requests
 	}
-	block, err := miner.engine.FinalizeAndAssemble(miner.chain, work.header, work.state, &body, work.receipts)
+	block, err := miner.engine.FinalizeAndAssembleWithoutAnchorTx(miner.chain, work.header, work.state, &body, work.receipts)
 	if err != nil {
 		return &newPayloadResult{err: err}
 	}
