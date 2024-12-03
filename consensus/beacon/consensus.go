@@ -422,6 +422,11 @@ func (beacon *Beacon) FinalizeAndAssemble(chain consensus.ChainHeaderReader, hea
 	return block, nil
 }
 
+// CHANGE(taiko): sanme to FinalizeAndAssemble.
+func (beacon *Beacon) FinalizeAndAssembleWithoutAnchorTx(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, body *types.Body, receipts []*types.Receipt) (*types.Block, error) {
+	return beacon.FinalizeAndAssemble(chain, header, state, body, receipts)
+}
+
 // Seal generates a new sealing request for the given input block and pushes
 // the result into the given channel.
 //

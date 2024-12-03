@@ -97,6 +97,9 @@ type Engine interface {
 	// consensus rules that happen at finalization (e.g. block rewards).
 	FinalizeAndAssemble(chain ChainHeaderReader, header *types.Header, state *state.StateDB, body *types.Body, receipts []*types.Receipt) (*types.Block, error)
 
+	// CHANGE(taiko): same to FinalizeAndAssemble but just don't validate anchor tx in taiko engine.
+	FinalizeAndAssembleWithoutAnchorTx(chain ChainHeaderReader, header *types.Header, state *state.StateDB, body *types.Body, receipts []*types.Receipt) (*types.Block, error)
+
 	// Seal generates a new sealing request for the given input block and pushes
 	// the result into the given channel.
 	//
