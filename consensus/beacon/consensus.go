@@ -422,7 +422,7 @@ func (beacon *Beacon) FinalizeAndAssemble(chain consensus.ChainHeaderReader, hea
 	return block, nil
 }
 
-// CHANGE(taiko): sanme to FinalizeAndAssemble.
+// CHANGE(taiko): same as FinalizeAndAssemble.
 func (beacon *Beacon) FinalizeAndAssembleWithoutAnchorTx(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, body *types.Body, receipts []*types.Receipt) (*types.Block, error) {
 	return beacon.FinalizeAndAssemble(chain, header, state, body, receipts)
 }
