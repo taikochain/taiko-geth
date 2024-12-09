@@ -600,11 +600,6 @@ func (c *Clique) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 	return types.NewBlock(header, &types.Body{Transactions: body.Transactions}, receipts, trie.NewStackTrie(nil)), nil
 }
 
-// CHANGE(taiko): same as FinalizeAndAssemble.
-func (c *Clique) FinalizeAndAssembleWithoutAnchorTx(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, body *types.Body, receipts []*types.Receipt) (*types.Block, error) {
-	return c.FinalizeAndAssemble(chain, header, state, body, receipts)
-}
-
 // Authorize injects a private key into the consensus engine to mint new blocks
 // with.
 func (c *Clique) Authorize(signer common.Address, signFn SignerFn) {

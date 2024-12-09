@@ -19,6 +19,7 @@ package miner
 import (
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/consensus/taiko"
 	"math/big"
 	"sync/atomic"
 	"time"
@@ -125,10 +126,20 @@ func (miner *Miner) generateWork(params *generateParams, witness bool) *newPaylo
 		}
 		body.Requests = requests
 	}
-	block, err := miner.engine.FinalizeAndAssembleWithoutAnchorTx(miner.chain, work.header, work.state, &body, work.receipts)
+
+	// CHANGE(taiko): If the calling path is from miner.Pending and the engine is taiko engine then use `FinalizeAndAssembleWithoutAnchorTx`.
+	var block *types.Block
+	switch miner.engine.(type) {
+	case *taiko.Taiko:
+		engine := miner.engine.(*taiko.Taiko)
+		block, err = engine.FinalizeAndAssembleWithoutAnchorTx(miner.chain, work.header, work.state, &body, work.receipts)
+	default:
+		block, err = miner.engine.FinalizeAndAssemble(miner.chain, work.header, work.state, &body, work.receipts)
+	}
 	if err != nil {
 		return &newPayloadResult{err: err}
 	}
+
 	return &newPayloadResult{
 		block:    block,
 		fees:     totalFees(block, work.receipts),
