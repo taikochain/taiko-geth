@@ -657,7 +657,6 @@ func (api *BlockChainAPI) ChainId() *hexutil.Big {
 
 // BlockNumber returns the block number of the chain head.
 func (api *BlockChainAPI) BlockNumber() hexutil.Uint64 {
-	// CHANGE(taiko): Forward the request to the preconf node if specified.
 	header, _ := api.b.HeaderByNumber(context.Background(), rpc.LatestBlockNumber) // latest header should always be available
 	return hexutil.Uint64(header.Number.Uint64())
 }
@@ -846,9 +845,8 @@ func (api *BlockChainAPI) GetBlockByNumber(ctx context.Context, number rpc.Block
 				response[field] = nil
 			}
 		}
-		return response, err
+		return response, nil
 	}
-
 	return nil, err
 }
 
@@ -1812,7 +1810,6 @@ func (api *TransactionAPI) GetTransactionReceipt(ctx context.Context, hash commo
 	if err != nil {
 		return nil, NewTxIndexingError() // transaction is not fully indexed
 	}
-
 	if !found {
 		return nil, nil // transaction is not existent or reachable
 	}
