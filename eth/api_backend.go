@@ -44,10 +44,10 @@ import (
 
 // EthAPIBackend implements ethapi.Backend and tracers.Backend for full nodes
 type EthAPIBackend struct {
-	extRPCEnabled                bool
-	allowUnprotectedTxs          bool
-	eth                          *Ethereum
-	gpo                          *gasprice.Oracle
+	extRPCEnabled       bool
+	allowUnprotectedTxs bool
+	eth                 *Ethereum
+	gpo                 *gasprice.Oracle
 }
 
 // ChainConfig returns the active chain configuration.
