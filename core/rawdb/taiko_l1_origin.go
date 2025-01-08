@@ -50,6 +50,7 @@ type L1OriginLegacy struct {
 type l1OriginMarshaling struct {
 	BlockID       *math.HexOrDecimal256
 	L1BlockHeight *math.HexOrDecimal256
+	BatchID       *math.HexOrDecimal256
 }
 
 // IsSoftBlock returns true if the L1Origin is a softblock.

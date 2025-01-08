@@ -20,17 +20,17 @@ func (l L1Origin) MarshalJSON() ([]byte, error) {
 		L2BlockHash   common.Hash           `json:"l2BlockHash"`
 		L1BlockHeight *math.HexOrDecimal256 `json:"l1BlockHeight"`
 		L1BlockHash   common.Hash           `json:"l1BlockHash"`
-		BatchID       *big.Int              `json:"batchID"`
-		EndOfBlock    bool                  `json:"endOfBlock"`
-		EndOfPreconf  bool                  `json:"endOfPreconf"`
-		Preconfer     common.Address        `json:"preconfer"`
+		BatchID       *math.HexOrDecimal256 `json:"batchID" rlp:"optional"`
+		EndOfBlock    bool                  `json:"endOfBlock" rlp:"optional"`
+		EndOfPreconf  bool                  `json:"endOfPreconf" rlp:"optional"`
+		Preconfer     common.Address        `json:"preconfer" rlp:"optional"`
 	}
 	var enc L1Origin
 	enc.BlockID = (*math.HexOrDecimal256)(l.BlockID)
 	enc.L2BlockHash = l.L2BlockHash
 	enc.L1BlockHeight = (*math.HexOrDecimal256)(l.L1BlockHeight)
 	enc.L1BlockHash = l.L1BlockHash
-	enc.BatchID = l.BatchID
+	enc.BatchID = (*math.HexOrDecimal256)(l.BatchID)
 	enc.EndOfBlock = l.EndOfBlock
 	enc.EndOfPreconf = l.EndOfPreconf
 	enc.Preconfer = l.Preconfer
@@ -44,10 +44,10 @@ func (l *L1Origin) UnmarshalJSON(input []byte) error {
 		L2BlockHash   *common.Hash          `json:"l2BlockHash"`
 		L1BlockHeight *math.HexOrDecimal256 `json:"l1BlockHeight"`
 		L1BlockHash   *common.Hash          `json:"l1BlockHash"`
-		BatchID       *big.Int              `json:"batchID"`
-		EndOfBlock    *bool                 `json:"endOfBlock"`
-		EndOfPreconf  *bool                 `json:"endOfPreconf"`
-		Preconfer     *common.Address       `json:"preconfer"`
+		BatchID       *math.HexOrDecimal256 `json:"batchID" rlp:"optional"`
+		EndOfBlock    *bool                 `json:"endOfBlock" rlp:"optional"`
+		EndOfPreconf  *bool                 `json:"endOfPreconf" rlp:"optional"`
+		Preconfer     *common.Address       `json:"preconfer" rlp:"optional"`
 	}
 	var dec L1Origin
 	if err := json.Unmarshal(input, &dec); err != nil {
@@ -67,7 +67,7 @@ func (l *L1Origin) UnmarshalJSON(input []byte) error {
 		l.L1BlockHash = *dec.L1BlockHash
 	}
 	if dec.BatchID != nil {
-		l.BatchID = dec.BatchID
+		l.BatchID = (*big.Int)(dec.BatchID)
 	}
 	if dec.EndOfBlock != nil {
 		l.EndOfBlock = *dec.EndOfBlock
