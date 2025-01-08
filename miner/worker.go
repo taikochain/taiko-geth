@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip4844"
+	"github.com/ethereum/go-ethereum/consensus/taiko"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/stateless"
@@ -34,6 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/trie"
 	"github.com/holiman/uint256"
 )
 
@@ -127,7 +129,13 @@ func (miner *Miner) generateWork(params *generateParams, witness bool) *newPaylo
 	}
 	block, err := miner.engine.FinalizeAndAssemble(miner.chain, work.header, work.state, &body, work.receipts)
 	if err != nil {
-		return &newPayloadResult{err: err}
+		// CHANGE(taiko): If the anchor tx is not found, return a pending state without anchor tx.
+		if miner.chainConfig.Taiko && err == taiko.ErrAnchorTxNotFound {
+			miner.engine.Finalize(miner.chain, work.header, work.state, &body)
+			block = types.NewBlock(work.header, &body, work.receipts, trie.NewStackTrie(nil))
+		} else {
+			return &newPayloadResult{err: err}
+		}
 	}
 	return &newPayloadResult{
 		block:    block,
