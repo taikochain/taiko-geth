@@ -157,6 +157,9 @@ type Config struct {
 
 	// OverrideVerkle (TODO: remove after the fork)
 	OverrideVerkle *uint64 `toml:",omitempty"`
+
+	// CHANGE(taiko): add preconfirmation forwarding URL
+	PreconfirmationForwardingURL string
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain config.
