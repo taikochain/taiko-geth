@@ -27,8 +27,17 @@ func l1OriginKey(blockID *big.Int) []byte {
 
 //go:generate go run github.com/fjl/gencodec -type L1Origin -field-override l1OriginMarshaling -out gen_taiko_l1_origin.go
 
-// L1Origin represents a L1Origin of a L2 block.
+// L1Origin represents a pacaya L1Origin of a L2 block.
 type L1Origin struct {
+	BlockID       *big.Int    `json:"blockID" gencodec:"required"`
+	BatchID       *big.Int    `json:"batchID" rlp:"optional"`
+	L2BlockHash   common.Hash `json:"l2BlockHash"`
+	L1BlockHeight *big.Int    `json:"l1BlockHeight" gencodec:"required"`
+	L1BlockHash   common.Hash `json:"l1BlockHash" gencodec:"required"`
+}
+
+// L1OriginLegacy represents a legacy L1Origin of a L2 block.
+type L1OriginLegacy struct {
 	BlockID       *big.Int    `json:"blockID" gencodec:"required"`
 	L2BlockHash   common.Hash `json:"l2BlockHash"`
 	L1BlockHeight *big.Int    `json:"l1BlockHeight" gencodec:"required"`
@@ -61,7 +70,22 @@ func ReadL1Origin(db ethdb.KeyValueReader, blockID *big.Int) (*L1Origin, error) 
 
 	l1Origin := new(L1Origin)
 	if err := rlp.Decode(bytes.NewReader(data), l1Origin); err != nil {
-		return nil, fmt.Errorf("invalid L1Origin RLP bytes: %w", err)
+		// If decoding the new version fails, try to decode the legacy version (without new fields).
+		l1OriginLegacy := new(L1OriginLegacy)
+		if err := rlp.Decode(bytes.NewReader(data), &l1OriginLegacy); err != nil {
+			return nil, fmt.Errorf("invalid legacy L1Origin RLP bytes: %w", err)
+		}
+
+		// If decoding legacy version succeeds, manually
+		// construct the new L1Origin with default values for the new fields.
+		l1Origin = &L1Origin{
+			BlockID:       l1OriginLegacy.BlockID,
+			L2BlockHash:   l1OriginLegacy.L2BlockHash,
+			L1BlockHeight: l1OriginLegacy.L1BlockHeight,
+			L1BlockHash:   l1OriginLegacy.L1BlockHash,
+			// default value, as the new fields are not present in the legacy version.
+			BatchID: nil,
+		}
 	}
 
 	return l1Origin, nil

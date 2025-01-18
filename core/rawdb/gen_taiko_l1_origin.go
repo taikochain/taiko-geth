@@ -17,12 +17,14 @@ var _ = (*l1OriginMarshaling)(nil)
 func (l L1Origin) MarshalJSON() ([]byte, error) {
 	type L1Origin struct {
 		BlockID       *math.HexOrDecimal256 `json:"blockID" gencodec:"required"`
+		BatchID       *big.Int              `json:"batchID" rlp:"optional"`
 		L2BlockHash   common.Hash           `json:"l2BlockHash"`
 		L1BlockHeight *math.HexOrDecimal256 `json:"l1BlockHeight" gencodec:"required"`
 		L1BlockHash   common.Hash           `json:"l1BlockHash" gencodec:"required"`
 	}
 	var enc L1Origin
 	enc.BlockID = (*math.HexOrDecimal256)(l.BlockID)
+	enc.BatchID = l.BatchID
 	enc.L2BlockHash = l.L2BlockHash
 	enc.L1BlockHeight = (*math.HexOrDecimal256)(l.L1BlockHeight)
 	enc.L1BlockHash = l.L1BlockHash
@@ -33,6 +35,7 @@ func (l L1Origin) MarshalJSON() ([]byte, error) {
 func (l *L1Origin) UnmarshalJSON(input []byte) error {
 	type L1Origin struct {
 		BlockID       *math.HexOrDecimal256 `json:"blockID" gencodec:"required"`
+		BatchID       *big.Int              `json:"batchID" rlp:"optional"`
 		L2BlockHash   *common.Hash          `json:"l2BlockHash"`
 		L1BlockHeight *math.HexOrDecimal256 `json:"l1BlockHeight" gencodec:"required"`
 		L1BlockHash   *common.Hash          `json:"l1BlockHash" gencodec:"required"`
@@ -45,6 +48,9 @@ func (l *L1Origin) UnmarshalJSON(input []byte) error {
 		return errors.New("missing required field 'blockID' for L1Origin")
 	}
 	l.BlockID = (*big.Int)(dec.BlockID)
+	if dec.BatchID != nil {
+		l.BatchID = dec.BatchID
+	}
 	if dec.L2BlockHash != nil {
 		l.L2BlockHash = *dec.L2BlockHash
 	}
