@@ -34,6 +34,9 @@ var (
 	AnchorV2Selector     = crypto.Keccak256(
 		[]byte("anchorV2(uint64,bytes32,uint32,(uint8,uint8,uint32,uint64,uint32))"),
 	)[:4]
+	AnchorV3Selector = crypto.Keccak256(
+		[]byte("anchorV2(uint64,bytes32,bytes32,uint32,(uint8,uint8,uint32,uint64,uint32),bytes32[])"),
+	)[:4]
 	AnchorGasLimit = uint64(250_000)
 )
 
@@ -290,7 +293,9 @@ func (t *Taiko) ValidateAnchorTx(tx *types.Transaction, header *types.Header) (b
 		return false, nil
 	}
 
-	if !bytes.HasPrefix(tx.Data(), AnchorSelector) && !bytes.HasPrefix(tx.Data(), AnchorV2Selector) {
+	if !bytes.HasPrefix(tx.Data(), AnchorSelector) &&
+		!bytes.HasPrefix(tx.Data(), AnchorV2Selector) &&
+		!bytes.HasPrefix(tx.Data(), AnchorV3Selector) {
 		return false, nil
 	}
 
