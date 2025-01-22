@@ -141,8 +141,8 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 					blockCtx = core.NewEVMBlockContext(task.block.Header(), api.chainContext(ctx), nil)
 				)
 
-				recordHash := newRecordHash(blockCtx.GetHash)
-				blockCtx.GetHash = recordHash.getHashFunc
+				newHashFunc := newHashFuncWithRecord(blockCtx.GetHash)
+				blockCtx.GetHash = newHashFunc.getHash
 				// Trace all the transactions contained within
 				for i, tx := range task.block.Transactions() {
 					if i == 0 && api.backend.ChainConfig().Taiko {
@@ -183,7 +183,7 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 					}
 					task.preflight.InitAccountProofs = append(task.preflight.InitAccountProofs, proof)
 					task.preflight.Contracts[proof.CodeHash] = (*hexutil.Bytes)(&code)
-					task.preflight.AncestorHashes = recordHash.hashes
+					task.preflight.AncestorHashes = newHashFunc.hashes
 				}
 
 				// Stream the result back to the result catcher or abort on teardown
@@ -422,19 +422,19 @@ func (n *proofList) Delete(key []byte) error {
 	panic("not supported")
 }
 
-type recordHash struct {
+type hashFuncWithRecord struct {
 	hashes   map[uint64]common.Hash
 	hashFunc vm.GetHashFunc
 }
 
-func newRecordHash(hashFunc vm.GetHashFunc) *recordHash {
-	return &recordHash{
+func newHashFuncWithRecord(hashFunc vm.GetHashFunc) *hashFuncWithRecord {
+	return &hashFuncWithRecord{
 		hashes:   make(map[uint64]common.Hash),
 		hashFunc: hashFunc,
 	}
 }
 
-func (r *recordHash) getHashFunc(n uint64) common.Hash {
+func (r *hashFuncWithRecord) getHash(n uint64) common.Hash {
 	hash := r.hashFunc(n)
 	r.hashes[n] = hash
 	return hash
