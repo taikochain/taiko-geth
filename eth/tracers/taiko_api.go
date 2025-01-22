@@ -30,6 +30,23 @@ type provingPreflightResult struct {
 	AncestorHeaders     []*types.Header                `json:"ancestorHeaders"`
 }
 
+// ProvingPreflights traces the blockchain from the start block to the end block
+// and returns a subscription to the results. This function is intended to be
+// used with long-running operations, as tracing a chain can be time-consuming.
+//
+// Parameters:
+// - ctx: The context for the operation.
+// - start: The starting block number for the trace.
+// - end: The ending block number for the trace.
+// - config: The configuration for the trace.
+//
+// Returns:
+// - *rpc.Subscription: A subscription to the trace results.
+// - error: An error if the operation fails, or if the end block is not after the start block.
+//
+// Note:
+//   - The function requires a notifier to be present in the context, otherwise it
+//     returns an error indicating that notifications are unsupported.
 func (api *API) ProvingPreflights(ctx context.Context, start, end rpc.BlockNumber, config *TraceConfig) (*rpc.Subscription, error) {
 	from, err := api.blockByNumber(ctx, start)
 	if err != nil {
