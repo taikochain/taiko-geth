@@ -183,8 +183,8 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 					}
 					task.preflight.InitAccountProofs = append(task.preflight.InitAccountProofs, proof)
 					task.preflight.Contracts[proof.CodeHash] = (*hexutil.Bytes)(&code)
-					task.preflight.AncestorHashes = newHashFunc.hashes
 				}
+				task.preflight.AncestorHashes = newHashFunc.hashes
 
 				// Stream the result back to the result catcher or abort on teardown
 				select {
