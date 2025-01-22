@@ -11,25 +11,25 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
-// ApplyTransactionWithContext applies a transaction to the state with a context.
-// If the context is cancelled or times out, the EVM execution will be stopped.
+// ApplyTransactionWithContext applies a transaction to the current state with the given context.
+// It converts the transaction to a message, creates a new EVM environment, and executes the transaction.
 //
 // Parameters:
-//   - ctx: The context to control the timeout and cancellation.
-//   - hashFunc: Function to retrieve block hashes.
+//   - ctx: The context to control the execution timeout and cancellation.
+//   - hashFuncWrapper: A function to wrap the block's GetHash function.
 //   - config: The chain configuration parameters.
 //   - bc: The blockchain context.
 //   - author: The address of the block author.
-//   - gp: The gas pool for the transaction.
+//   - gp: The gas pool for the current block.
 //   - statedb: The state database.
 //   - header: The block header.
 //   - tx: The transaction to be applied.
-//   - usedGas: Pointer to the used gas value.
+//   - usedGas: A pointer to the amount of gas used.
 //   - cfg: The EVM configuration.
 //
 // Returns:
 //   - *types.Receipt: The receipt of the transaction.
-//   - error: An error if the transaction application fails.
+//   - error: An error if the transaction could not be applied.
 func ApplyTransactionWithContext(ctx context.Context, hashFuncWrapper func(vm.GetHashFunc) vm.GetHashFunc, config *params.ChainConfig, bc ChainContext, author *common.Address, gp *GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, error) {
 	msg, err := TransactionToMessage(tx, types.MakeSigner(config, header.Number, header.Time), header.BaseFee)
 	if err != nil {
