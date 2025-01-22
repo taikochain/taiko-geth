@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
-// ApplyTransactionWithTimeout applies a transaction to the state with a timeout context.
+// ApplyTransactionWithContext applies a transaction to the state with a context.
 // If the context is cancelled or times out, the EVM execution will be stopped.
 //
 // Parameters:
@@ -30,7 +30,7 @@ import (
 // Returns:
 //   - *types.Receipt: The receipt of the transaction.
 //   - error: An error if the transaction application fails.
-func ApplyTransactionWithTimeout(ctx context.Context, hashFuncWrapper func(vm.GetHashFunc) vm.GetHashFunc, config *params.ChainConfig, bc ChainContext, author *common.Address, gp *GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, error) {
+func ApplyTransactionWithContext(ctx context.Context, hashFuncWrapper func(vm.GetHashFunc) vm.GetHashFunc, config *params.ChainConfig, bc ChainContext, author *common.Address, gp *GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, error) {
 	msg, err := TransactionToMessage(tx, types.MakeSigner(config, header.Number, header.Time), header.BaseFee)
 	if err != nil {
 		return nil, err

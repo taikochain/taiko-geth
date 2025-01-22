@@ -348,7 +348,7 @@ func (api *API) applyTx(ctx context.Context, hashFuncWrapper func(vm.GetHashFunc
 	defer cancel()
 
 	statedb.SetTxContext(tx.Hash(), txIdx)
-	_, err = core.ApplyTransactionWithTimeout(deadlineCtx, hashFuncWrapper, api.backend.ChainConfig(), api.backend.(TaikoBackend).BlockChain(), nil, new(core.GasPool).AddGas(tx.Gas()), statedb, header, tx, &usedGas, vm.Config{})
+	_, err = core.ApplyTransactionWithContext(deadlineCtx, hashFuncWrapper, api.backend.ChainConfig(), api.backend.(TaikoBackend).BlockChain(), nil, new(core.GasPool).AddGas(tx.Gas()), statedb, header, tx, &usedGas, vm.Config{})
 	if err != nil {
 		return err
 	}
