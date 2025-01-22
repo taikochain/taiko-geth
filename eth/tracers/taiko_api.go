@@ -41,6 +41,14 @@ type provingPreflightTask struct {
 	preflight *provingPreflightResult // Preflight results produced by the task
 }
 
+type RaikoAPI struct {
+	*API
+}
+
+func NewRaikoAPI(api *API) *RaikoAPI {
+	return &RaikoAPI{API: api}
+}
+
 // ProvingPreflights traces the blockchain from the start block to the end block
 // and returns a subscription to the results. This function is intended to be
 // used with long-running operations, as tracing a chain can be time-consuming.
@@ -58,7 +66,7 @@ type provingPreflightTask struct {
 // Note:
 //   - The function requires a notifier to be present in the context, otherwise it
 //     returns an error indicating that notifications are unsupported.
-func (api *API) ProvingPreflights(ctx context.Context, start, end rpc.BlockNumber, config *TraceConfig) (*rpc.Subscription, error) {
+func (api *RaikoAPI) ProvingPreflights(ctx context.Context, start, end rpc.BlockNumber, config *TraceConfig) (*rpc.Subscription, error) {
 	if start == 0 {
 		return nil, fmt.Errorf("start block must be greater than 0")
 	}
@@ -107,7 +115,7 @@ func (api *API) ProvingPreflights(ctx context.Context, start, end rpc.BlockNumbe
 // The function uses multiple goroutines to trace transactions concurrently, leveraging the available CPU cores.
 // It ensures that the state is properly managed and released after tracing each block. Progress and errors are logged
 // throughout the process.
-func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, closed <-chan error) chan *provingPreflightResult {
+func (api *RaikoAPI) provingPreflights(start, end *types.Block, config *TraceConfig, closed <-chan error) chan *provingPreflightResult {
 	reexec := defaultTraceReexec
 	if config != nil && config.Reexec != nil {
 		reexec = *config.Reexec
@@ -343,7 +351,7 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 }
 
 // getProof returns the Merkle-proof for a given account and optionally some storage keys.
-func (api *API) getProof(ctx context.Context, address common.Address, storageKeys []common.Hash, parent *types.Block, reexec uint64) (*ethapi.AccountResult, []byte, error) {
+func (api *RaikoAPI) getProof(ctx context.Context, address common.Address, storageKeys []common.Hash, parent *types.Block, reexec uint64) (*ethapi.AccountResult, []byte, error) {
 	var (
 		storageProof = make([]ethapi.StorageResult, len(storageKeys))
 	)
