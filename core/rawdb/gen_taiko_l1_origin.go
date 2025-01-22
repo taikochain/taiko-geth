@@ -18,8 +18,8 @@ func (l L1Origin) MarshalJSON() ([]byte, error) {
 	type L1Origin struct {
 		BlockID       *math.HexOrDecimal256 `json:"blockID" gencodec:"required"`
 		L2BlockHash   common.Hash           `json:"l2BlockHash"`
-		L1BlockHeight *math.HexOrDecimal256 `json:"l1BlockHeight" gencodec:"required"`
-		L1BlockHash   common.Hash           `json:"l1BlockHash" gencodec:"required"`
+		L1BlockHeight *math.HexOrDecimal256 `json:"l1BlockHeight" gencodec:"required" rlp:"optional"`
+		L1BlockHash   common.Hash           `json:"l1BlockHash" gencodec:"required" rlp:"optional"`
 	}
 	var enc L1Origin
 	enc.BlockID = (*math.HexOrDecimal256)(l.BlockID)
@@ -34,8 +34,8 @@ func (l *L1Origin) UnmarshalJSON(input []byte) error {
 	type L1Origin struct {
 		BlockID       *math.HexOrDecimal256 `json:"blockID" gencodec:"required"`
 		L2BlockHash   *common.Hash          `json:"l2BlockHash"`
-		L1BlockHeight *math.HexOrDecimal256 `json:"l1BlockHeight" gencodec:"required"`
-		L1BlockHash   *common.Hash          `json:"l1BlockHash" gencodec:"required"`
+		L1BlockHeight *math.HexOrDecimal256 `json:"l1BlockHeight" gencodec:"required" rlp:"optional"`
+		L1BlockHash   *common.Hash          `json:"l1BlockHash" gencodec:"required" rlp:"optional"`
 	}
 	var dec L1Origin
 	if err := json.Unmarshal(input, &dec); err != nil {
