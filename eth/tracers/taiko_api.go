@@ -141,6 +141,11 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 			// Fetch and execute the block trace taskCh
 			for task := range taskCh {
 				newHashFunc := newHashFuncWithRecord()
+				var (
+					signer   = types.MakeSigner(api.backend.ChainConfig(), task.block.Number(), task.block.Time())
+					blockCtx = core.NewEVMBlockContext(task.block.Header(), api.chainContext(ctx), nil)
+				)
+				blockCtx.GetHash = newHashFunc.hashFuncWrapper(blockCtx.GetHash)
 				// Trace all the transactions contained within
 				for i, tx := range task.block.Transactions() {
 					if i == 0 && api.backend.ChainConfig().Taiko {
@@ -150,7 +155,19 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 							break
 						}
 					}
-					err := api.applyTx(ctx, newHashFunc.hashFuncWrapper, i, tx, task.block.Header(), task.statedb, config)
+					msg, _ := core.TransactionToMessage(tx, signer, task.block.BaseFee())
+					// CHANGE(taiko): decode the basefeeSharingPctg config from the extradata, and
+					// add it to the Message, if its an ontake block.
+					if api.backend.ChainConfig().IsOntake(task.block.Number()) {
+						msg.BasefeeSharingPctg = core.DecodeOntakeExtraData(task.block.Header().Extra)
+					}
+					txctx := &Context{
+						BlockHash:   task.block.Hash(),
+						BlockNumber: task.block.Number(),
+						TxIndex:     i,
+						TxHash:      tx.Hash(),
+					}
+					_, err := api.traceTx(ctx, tx, msg, txctx, blockCtx, task.statedb, config)
 					if err != nil {
 						log.Warn("Tracing failed", "hash", tx.Hash(), "block", task.block.NumberU64(), "err", err)
 						task.preflight.Error = err
@@ -327,32 +344,6 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 		}
 	}()
 	return retCh
-}
-
-// applyTx configures a new tracer according to the provided configuration, and
-// executes the given message in the provided environment. The return value will
-// be tracer dependent.
-func (api *API) applyTx(ctx context.Context, hashFuncWrapper func(vm.GetHashFunc) vm.GetHashFunc, txIdx int, tx *types.Transaction, header *types.Header, statedb *state.StateDB, config *TraceConfig) error {
-	var (
-		err     error
-		timeout = defaultTraceTimeout
-		usedGas uint64
-	)
-	if config != nil && config.Timeout != nil {
-		if timeout, err = time.ParseDuration(*config.Timeout); err != nil {
-			return err
-		}
-	}
-
-	deadlineCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	statedb.SetTxContext(tx.Hash(), txIdx)
-	_, err = core.ApplyTransactionWithContext(deadlineCtx, hashFuncWrapper, api.backend.ChainConfig(), api.backend.(TaikoBackend).BlockChain(), nil, new(core.GasPool).AddGas(tx.Gas()), statedb, header, tx, &usedGas, vm.Config{})
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // getProof returns the Merkle-proof for a given account and optionally some storage keys.
