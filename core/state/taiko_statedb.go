@@ -2,15 +2,8 @@ package state
 
 import (
 	"github.com/ethereum/go-ethereum/common"
+	"golang.org/x/exp/maps"
 )
-
-func (s Storage) Keys() []common.Hash {
-	keys := make([]common.Hash, 0, len(s))
-	for key := range s {
-		keys = append(keys, key)
-	}
-	return keys
-}
 
 // TouchedAccounts represents the storage of an account at a specific point in time.
 type TouchedAccounts map[common.Address][]common.Hash
@@ -20,12 +13,12 @@ type TouchedAccounts map[common.Address][]common.Hash
 func (s *StateDB) TouchedAccounts() TouchedAccounts {
 	touched := make(TouchedAccounts, len(s.stateObjects))
 	for addr, obj := range s.stateObjects {
-		touched[addr] = obj.originStorage.Keys()
+		touched[addr] = maps.Keys(obj.originStorage)
 	}
 	for addr, obj := range s.stateObjectsDestruct {
 		// ignore empty account because it won't affect the state
 		if !obj.empty() {
-			touched[addr] = obj.originStorage.Keys()
+			touched[addr] = maps.Keys(obj.originStorage)
 		}
 	}
 	return touched
