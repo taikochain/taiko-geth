@@ -42,6 +42,7 @@ func ApplyTransactionWithTimeout(ctx context.Context, hashFuncWrapper func(vm.Ge
 	}
 	// Create a new context to be used in the EVM environment
 	blockContext := NewEVMBlockContext(header, bc, author)
+	blockContext.GetHash = hashFuncWrapper(blockContext.GetHash)
 	txContext := NewEVMTxContext(msg)
 	vmenv := vm.NewEVM(blockContext, txContext, statedb, config, cfg)
 	go func() {
