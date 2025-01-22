@@ -20,7 +20,9 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 )
 
-var noopTracer = "noopTracer"
+type TaikoBackend interface {
+	BlockChain() *core.BlockChain
+}
 
 // provingPreflightResult is the result of a proving preflight request.
 type provingPreflightResult struct {
@@ -37,7 +39,6 @@ type provingPreflightTask struct {
 	parent    *types.Block            // Parent block of the block to preflight
 	block     *types.Block            // Block to preflight the transactions from
 	release   StateReleaseFunc        // The function to release the held resource for this task
-	results   []*txTraceResult        // Trace results produced by the task
 	preflight *provingPreflightResult // Preflight results produced by the task
 }
 
@@ -125,11 +126,6 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 	if threads > blocks {
 		threads = blocks
 	}
-	// no need any execution traces when preflighting
-	if config == nil {
-		config = &TraceConfig{}
-	}
-	config.Tracer = &noopTracer
 	var (
 		pend    = new(sync.WaitGroup)
 		ctx     = context.Background()
@@ -144,38 +140,22 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 
 			// Fetch and execute the block trace taskCh
 			for task := range taskCh {
-				var (
-					signer   = types.MakeSigner(api.backend.ChainConfig(), task.block.Number(), task.block.Time())
-					blockCtx = core.NewEVMBlockContext(task.block.Header(), api.chainContext(ctx), nil)
-				)
-
-				newHashFunc := newHashFuncWithRecord(blockCtx.GetHash)
-				blockCtx.GetHash = newHashFunc.getHash
+				newHashFunc := newHashFuncWithRecord()
 				// Trace all the transactions contained within
 				for i, tx := range task.block.Transactions() {
 					if i == 0 && api.backend.ChainConfig().Taiko {
 						if err := tx.MarkAsAnchor(); err != nil {
 							log.Warn("Mark anchor transaction error", "error", err)
-							task.results[i] = &txTraceResult{TxHash: tx.Hash(), Error: err.Error()}
 							task.preflight.Error = err
 							break
 						}
 					}
-					msg, _ := core.TransactionToMessage(tx, signer, task.block.BaseFee())
-					txctx := &Context{
-						BlockHash:   task.block.Hash(),
-						BlockNumber: task.block.Number(),
-						TxIndex:     i,
-						TxHash:      tx.Hash(),
-					}
-					res, err := api.traceTx(ctx, tx, msg, txctx, blockCtx, task.statedb, config)
+					err := api.applyTx(ctx, newHashFunc.hashFuncWrapper, i, tx, task.block.Header(), task.statedb, config)
 					if err != nil {
-						task.results[i] = &txTraceResult{TxHash: tx.Hash(), Error: err.Error()}
 						log.Warn("Tracing failed", "hash", tx.Hash(), "block", task.block.NumberU64(), "err", err)
 						task.preflight.Error = err
 						break
 					}
-					task.results[i] = &txTraceResult{TxHash: tx.Hash(), Result: res}
 				}
 				// Tracing state is used up, queue it for de-referencing. Note the
 				// state is the parent state of trace block, use block.number-1 as
@@ -306,7 +286,6 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 				parent:  block,
 				block:   next,
 				release: release,
-				results: make([]*txTraceResult, len(txs)),
 				preflight: &provingPreflightResult{
 					Block:             next,
 					InitAccountProofs: []*ethapi.AccountResult{},
@@ -348,6 +327,32 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 		}
 	}()
 	return retCh
+}
+
+// applyTx configures a new tracer according to the provided configuration, and
+// executes the given message in the provided environment. The return value will
+// be tracer dependent.
+func (api *API) applyTx(ctx context.Context, hashFuncWrapper func(vm.GetHashFunc) vm.GetHashFunc, txIdx int, tx *types.Transaction, header *types.Header, statedb *state.StateDB, config *TraceConfig) error {
+	var (
+		err     error
+		timeout = defaultTraceTimeout
+		usedGas uint64
+	)
+	if config != nil && config.Timeout != nil {
+		if timeout, err = time.ParseDuration(*config.Timeout); err != nil {
+			return err
+		}
+	}
+
+	deadlineCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	statedb.SetTxContext(tx.Hash(), txIdx)
+	_, err = core.ApplyTransactionWithTimeout(deadlineCtx, hashFuncWrapper, api.backend.ChainConfig(), api.backend.(TaikoBackend).BlockChain(), nil, new(core.GasPool).AddGas(tx.Gas()), statedb, header, tx, &usedGas, vm.Config{})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // getProof returns the Merkle-proof for a given account and optionally some storage keys.
@@ -435,11 +440,15 @@ type hashFuncWithRecord struct {
 	hashFunc vm.GetHashFunc
 }
 
-func newHashFuncWithRecord(hashFunc vm.GetHashFunc) *hashFuncWithRecord {
+func newHashFuncWithRecord() *hashFuncWithRecord {
 	return &hashFuncWithRecord{
-		hashes:   make(map[uint64]common.Hash),
-		hashFunc: hashFunc,
+		hashes: make(map[uint64]common.Hash),
 	}
+}
+
+func (r *hashFuncWithRecord) hashFuncWrapper(hashFunc vm.GetHashFunc) vm.GetHashFunc {
+	r.hashFunc = hashFunc
+	return r.getHash
 }
 
 func (r *hashFuncWithRecord) getHash(n uint64) common.Hash {
