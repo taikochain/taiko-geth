@@ -2,8 +2,11 @@ package tracers
 
 import (
 	"context"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -13,21 +16,32 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 var noopTracer = "noopTracer"
 
 // provingPreflightResult is the result of a proving preflight request.
 type provingPreflightResult struct {
-	Block               *types.Block                   `json:"block"`
-	ParentHeader        *types.Header                  `json:"parentHeader"`
-	AccountProofs       []*ethapi.AccountResult        `json:"accountProofs"`
-	ParentAccountProofs []*ethapi.AccountResult        `json:"parentAccountProofs"`
-	Contracts           map[common.Hash]*hexutil.Bytes `json:"contracts"`
-	AncestorHeaders     []*types.Header                `json:"ancestorHeaders"`
+	Block             *types.Block                   `json:"block"`
+	InitAccountProofs []*ethapi.AccountResult        `json:"initAccountProofs"`
+	Contracts         map[common.Hash]*hexutil.Bytes `json:"contracts"`
+	AncestorHashes    []common.Hash                  `json:"ancestorHashes"`
+	Error             error                          `json:"error,omitempty"`
+}
+
+// provingPreflightTask represents a single block preflight task.
+type provingPreflightTask struct {
+	statedb   *state.StateDB          // Intermediate state prepped for preflighting
+	parent    *types.Block            // Parent block of the block to preflight
+	block     *types.Block            // Block to preflight the transactions from
+	release   StateReleaseFunc        // The function to release the held resource for this task
+	results   []*txTraceResult        // Trace results produced by the task
+	preflight *provingPreflightResult // Preflight results produced by the task
 }
 
 // ProvingPreflights traces the blockchain from the start block to the end block
@@ -48,6 +62,12 @@ type provingPreflightResult struct {
 //   - The function requires a notifier to be present in the context, otherwise it
 //     returns an error indicating that notifications are unsupported.
 func (api *API) ProvingPreflights(ctx context.Context, start, end rpc.BlockNumber, config *TraceConfig) (*rpc.Subscription, error) {
+	if start == 0 {
+		return nil, fmt.Errorf("start block must be greater than 0")
+	}
+	// Adjust the start block to the parent one
+	start -= 1
+
 	from, err := api.blockByNumber(ctx, start)
 	if err != nil {
 		return nil, err
@@ -75,6 +95,21 @@ func (api *API) ProvingPreflights(ctx context.Context, start, end rpc.BlockNumbe
 	return sub, nil
 }
 
+// provingPreflights performs preflight checks on a range of blocks to ensure they are ready for proving.
+// It traces transactions within the specified block range and returns a channel that streams the results.
+//
+// Parameters:
+// - start: The starting block of the range to be traced.
+// - end: The ending block of the range to be traced.
+// - config: Configuration for tracing, including re-execution settings and tracer options.
+// - closed: A channel to signal when the tracing should be aborted.
+//
+// Returns:
+// - A channel that streams the results of the preflight checks for each block.
+//
+// The function uses multiple goroutines to trace transactions concurrently, leveraging the available CPU cores.
+// It ensures that the state is properly managed and released after tracing each block. Progress and errors are logged
+// throughout the process.
 func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, closed <-chan error) chan *provingPreflightResult {
 	reexec := defaultTraceReexec
 	if config != nil && config.Reexec != nil {
@@ -93,8 +128,8 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 	var (
 		pend    = new(sync.WaitGroup)
 		ctx     = context.Background()
-		taskCh  = make(chan *blockTraceTask, threads)
-		resCh   = make(chan *blockTraceTask, threads)
+		taskCh  = make(chan *provingPreflightTask, threads)
+		resCh   = make(chan *provingPreflightTask, threads)
 		tracker = newStateTracker(maximumPendingTraceStates, start.NumberU64())
 	)
 	for th := 0; th < threads; th++ {
@@ -114,6 +149,7 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 						if err := tx.MarkAsAnchor(); err != nil {
 							log.Warn("Mark anchor transaction error", "error", err)
 							task.results[i] = &txTraceResult{TxHash: tx.Hash(), Error: err.Error()}
+							task.preflight.Error = err
 							break
 						}
 					}
@@ -128,6 +164,7 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 					if err != nil {
 						task.results[i] = &txTraceResult{TxHash: tx.Hash(), Error: err.Error()}
 						log.Warn("Tracing failed", "hash", tx.Hash(), "block", task.block.NumberU64(), "err", err)
+						task.preflight.Error = err
 						break
 					}
 					task.results[i] = &txTraceResult{TxHash: tx.Hash(), Result: res}
@@ -136,6 +173,15 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 				// state is the parent state of trace block, use block.number-1 as
 				// the state number.
 				tracker.releaseState(task.block.NumberU64()-1, task.release)
+
+				// Retrieve the touched accounts from the state
+				for addr, slots := range task.statedb.TouchedAccounts() {
+					proof, err := api.getProof(ctx, addr, slots, task.parent, reexec)
+					if err != nil {
+						task.preflight.Error = err
+						break
+					}
+				}
 
 				// Stream the result back to the result catcher or abort on teardown
 				select {
@@ -244,7 +290,19 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 			// Send the block over to the concurrent tracers (if not in the fast-forward phase)
 			txs := next.Transactions()
 			select {
-			case taskCh <- &blockTraceTask{statedb: statedb.Copy(), block: next, release: release, results: make([]*txTraceResult, len(txs))}:
+			case taskCh <- &provingPreflightTask{
+				statedb: statedb.Copy(),
+				parent:  block,
+				block:   next,
+				release: release,
+				results: make([]*txTraceResult, len(txs)),
+				preflight: &provingPreflightResult{
+					Block:             next,
+					InitAccountProofs: []*ethapi.AccountResult{},
+					Contracts:         map[common.Hash]*hexutil.Bytes{},
+					AncestorHashes:    []common.Hash{},
+				},
+			}:
 			case <-closed:
 				tracker.releaseState(number, release)
 				return
@@ -254,25 +312,21 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 	}()
 
 	// Keep reading the trace results and stream them to result channel.
-	retCh := make(chan *blockTraceResult)
+	retCh := make(chan *provingPreflightResult)
 	go func() {
 		defer close(retCh)
 		var (
 			next = start.NumberU64() + 1
-			done = make(map[uint64]*blockTraceResult)
+			done = make(map[uint64]*provingPreflightResult)
 		)
 		for res := range resCh {
 			// Queue up next received result
-			result := &blockTraceResult{
-				Block:  hexutil.Uint64(res.block.NumberU64()),
-				Hash:   res.block.Hash(),
-				Traces: res.results,
-			}
-			done[uint64(result.Block)] = result
+			result := res.preflight
+			done[uint64(res.block.NumberU64())] = result
 
 			// Stream completed traces to the result channel
 			for result, ok := done[next]; ok; result, ok = done[next] {
-				if len(result.Traces) > 0 || next == end.NumberU64() {
+				if next == end.NumberU64() {
 					// It will be blocked in case the channel consumer doesn't take the
 					// tracing result in time(e.g. the websocket connect is not stable)
 					// which will eventually block the entire chain tracer. It's the
@@ -285,4 +339,103 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 		}
 	}()
 	return retCh
+}
+
+// getProof returns the Merkle-proof for a given account and optionally some storage keys.
+func (api *API) getProof(ctx context.Context, address common.Address, storageKeys []common.Hash, parent *types.Block, reexec uint64) (*ethapi.AccountResult, error) {
+	var (
+		storageProof = make([]ethapi.StorageResult, len(storageKeys))
+	)
+
+	header := parent.Header()
+
+	statedb, release, err := api.backend.StateAtBlock(ctx, parent, reexec, nil, true, false)
+	if statedb == nil || err != nil {
+		return nil, err
+	}
+	defer release()
+
+	codeHash := statedb.GetCodeHash(address)
+	storageRoot := statedb.GetStorageRoot(address)
+
+	if len(storageKeys) > 0 {
+		var storageTrie state.Trie
+		if storageRoot != types.EmptyRootHash && storageRoot != (common.Hash{}) {
+			id := trie.StorageTrieID(header.Root, crypto.Keccak256Hash(address.Bytes()), storageRoot)
+			st, err := trie.NewStateTrie(id, statedb.Database().TrieDB())
+			if err != nil {
+				return nil, err
+			}
+			storageTrie = st
+		}
+		// Create the proofs for the storageKeys.
+		for i, key := range storageKeys {
+			// Output key encoding is a bit special: if the input was a 32-byte hash, it is
+			// returned as such. Otherwise, we apply the QUANTITY encoding mandated by the
+			// JSON-RPC spec for getProof. This behavior exists to preserve backwards
+			// compatibility with older client versions.
+			outputKey := hexutil.Encode(key[:])
+			if storageTrie == nil {
+				storageProof[i] = ethapi.StorageResult{Key: outputKey, Value: &hexutil.Big{}, Proof: []string{}}
+				continue
+			}
+			var proof proofList
+			if err := storageTrie.Prove(crypto.Keccak256(key.Bytes()), &proof); err != nil {
+				return nil, err
+			}
+			value := (*hexutil.Big)(statedb.GetState(address, key).Big())
+			storageProof[i] = ethapi.StorageResult{Key: outputKey, Value: value, Proof: proof}
+		}
+	}
+	// Create the accountProof.
+	tr, err := trie.NewStateTrie(trie.StateTrieID(header.Root), statedb.Database().TrieDB())
+	if err != nil {
+		return nil, err
+	}
+	var accountProof proofList
+	if err := tr.Prove(crypto.Keccak256(address.Bytes()), &accountProof); err != nil {
+		return nil, err
+	}
+	balance := statedb.GetBalance(address).ToBig()
+	return &ethapi.AccountResult{
+		Address:      address,
+		AccountProof: accountProof,
+		Balance:      (*hexutil.Big)(balance),
+		CodeHash:     codeHash,
+		Nonce:        hexutil.Uint64(statedb.GetNonce(address)),
+		StorageHash:  storageRoot,
+		StorageProof: storageProof,
+	}, statedb.Error()
+}
+
+// proofList implements ethdb.KeyValueWriter and collects the proofs as
+// hex-strings for delivery to rpc-caller.
+type proofList []string
+
+func (n *proofList) Put(key []byte, value []byte) error {
+	*n = append(*n, hexutil.Encode(value))
+	return nil
+}
+
+func (n *proofList) Delete(key []byte) error {
+	panic("not supported")
+}
+
+// decodeHash parses a hex-encoded 32-byte hash. The input may optionally
+// be prefixed by 0x and can have a byte length up to 32.
+func decodeHash(s string) (h common.Hash, inputLength int, err error) {
+	if strings.HasPrefix(s, "0x") || strings.HasPrefix(s, "0X") {
+		s = s[2:]
+	}
+	if (len(s) & 1) > 0 {
+		s = "0" + s
+	}
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return common.Hash{}, 0, errors.New("hex string invalid")
+	}
+	if len(b) > 32 {
+		return common.Hash{}, len(b), errors.New("hex string too long, want at most 32 bytes")
+	}
+	return common.BytesToHash(b), len(b), nil
 }
