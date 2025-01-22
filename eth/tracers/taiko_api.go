@@ -63,8 +63,6 @@ func (api *API) ProvingPreflights(ctx context.Context, start, end rpc.BlockNumbe
 	if start == 0 {
 		return nil, fmt.Errorf("start block must be greater than 0")
 	}
-	// Adjust the start block to the parent one
-	start -= 1
 
 	from, err := api.blockByNumber(ctx, start)
 	if err != nil {
@@ -230,6 +228,12 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 			}
 			close(resCh)
 		}()
+
+		var (
+			block  *types.Block
+			parent *types.Block
+			err    error
+		)
 		// Feed all the blocks both into the tracer, as well as fast process concurrently
 		for number = start.NumberU64(); number < end.NumberU64(); number++ {
 			// Stop tracing if interruption was requested
@@ -243,16 +247,19 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 				logged = time.Now()
 				log.Info("Tracing chain segment", "start", start.NumberU64(), "end", end.NumberU64(), "current", number, "transactions", traced, "elapsed", time.Since(begin))
 			}
+			parent = block
 			// Retrieve the parent block and target block for tracing.
-			block, err := api.blockByNumber(ctx, rpc.BlockNumber(number))
+			block, err = api.blockByNumber(ctx, rpc.BlockNumber(number))
 			if err != nil {
 				failed = err
 				break
 			}
-			next, err := api.blockByNumber(ctx, rpc.BlockNumber(number+1))
-			if err != nil {
-				failed = err
-				break
+			if parent == nil {
+				parent, err = api.blockByHash(ctx, block.ParentHash())
+				if err != nil {
+					failed = err
+					break
+				}
 			}
 			// Make sure the state creator doesn't go too far. Too many unprocessed
 			// trace state may cause the oldest state to become stale(e.g. in
@@ -271,23 +278,23 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 				s1, s2, s3 := statedb.Database().TrieDB().Size()
 				preferDisk = s1+s2+s3 > defaultTracechainMemLimit
 			}
-			statedb, release, err = api.backend.StateAtBlock(ctx, block, reexec, statedb, false, preferDisk)
+			statedb, release, err = api.backend.StateAtBlock(ctx, parent, reexec, statedb, false, preferDisk)
 			if err != nil {
 				failed = err
 				break
 			}
 			// Insert block's parent beacon block root in the state
 			// as per EIP-4788.
-			if beaconRoot := next.BeaconRoot(); beaconRoot != nil {
-				context := core.NewEVMBlockContext(next.Header(), api.chainContext(ctx), nil)
+			if beaconRoot := block.BeaconRoot(); beaconRoot != nil {
+				context := core.NewEVMBlockContext(block.Header(), api.chainContext(ctx), nil)
 				vmenv := vm.NewEVM(context, vm.TxContext{}, statedb, api.backend.ChainConfig(), vm.Config{})
 				core.ProcessBeaconBlockRoot(*beaconRoot, vmenv, statedb)
 			}
 			// Insert parent hash in history contract.
-			if api.backend.ChainConfig().IsPrague(next.Number(), next.Time()) {
-				context := core.NewEVMBlockContext(next.Header(), api.chainContext(ctx), nil)
+			if api.backend.ChainConfig().IsPrague(block.Number(), block.Time()) {
+				context := core.NewEVMBlockContext(block.Header(), api.chainContext(ctx), nil)
 				vmenv := vm.NewEVM(context, vm.TxContext{}, statedb, api.backend.ChainConfig(), vm.Config{})
-				core.ProcessParentBlockHash(next.ParentHash(), vmenv, statedb)
+				core.ProcessParentBlockHash(block.ParentHash(), vmenv, statedb)
 			}
 			// Clean out any pending release functions of trace state. Note this
 			// step must be done after constructing tracing state, because the
@@ -296,15 +303,15 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 			tracker.callReleases()
 
 			// Send the block over to the concurrent tracers (if not in the fast-forward phase)
-			txs := next.Transactions()
+			txs := block.Transactions()
 			select {
 			case taskCh <- &provingPreflightTask{
 				statedb: statedb.Copy(),
-				parent:  block,
-				block:   next,
+				parent:  parent,
+				block:   block,
 				release: release,
 				preflight: &provingPreflightResult{
-					Block:             next,
+					Block:             block,
 					InitAccountProofs: []*ethapi.AccountResult{},
 					Contracts:         map[common.Hash]*hexutil.Bytes{},
 					AncestorHashes:    map[uint64]common.Hash{},
