@@ -181,6 +181,7 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 						task.preflight.Error = err
 						break
 					}
+					task.preflight.InitAccountProofs = append(task.preflight.InitAccountProofs, proof)
 				}
 
 				// Stream the result back to the result catcher or abort on teardown
@@ -322,17 +323,15 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 		for res := range resCh {
 			// Queue up next received result
 			result := res.preflight
-			done[uint64(res.block.NumberU64())] = result
+			done[res.block.NumberU64()] = result
 
 			// Stream completed traces to the result channel
 			for result, ok := done[next]; ok; result, ok = done[next] {
-				if next == end.NumberU64() {
-					// It will be blocked in case the channel consumer doesn't take the
-					// tracing result in time(e.g. the websocket connect is not stable)
-					// which will eventually block the entire chain tracer. It's the
-					// expected behavior to not waste node resources for a non-active user.
-					retCh <- result
-				}
+				// It will be blocked in case the channel consumer doesn't take the
+				// tracing result in time(e.g. the websocket connect is not stable)
+				// which will eventually block the entire chain tracer. It's the
+				// expected behavior to not waste node resources for a non-active user.
+				retCh <- result
 				delete(done, next)
 				next++
 			}
