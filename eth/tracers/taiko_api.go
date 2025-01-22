@@ -2,11 +2,8 @@ package tracers
 
 import (
 	"context"
-	"encoding/hex"
-	"errors"
 	"fmt"
 	"runtime"
-	"strings"
 	"sync"
 	"time"
 
@@ -30,7 +27,7 @@ type provingPreflightResult struct {
 	Block             *types.Block                   `json:"block"`
 	InitAccountProofs []*ethapi.AccountResult        `json:"initAccountProofs"`
 	Contracts         map[common.Hash]*hexutil.Bytes `json:"contracts"`
-	AncestorHashes    []common.Hash                  `json:"ancestorHashes"`
+	AncestorHashes    map[uint64]common.Hash         `json:"ancestorHashes"`
 	Error             error                          `json:"error,omitempty"`
 }
 
@@ -143,6 +140,9 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 					signer   = types.MakeSigner(api.backend.ChainConfig(), task.block.Number(), task.block.Time())
 					blockCtx = core.NewEVMBlockContext(task.block.Header(), api.chainContext(ctx), nil)
 				)
+
+				recordHash := newRecordHash(blockCtx.GetHash)
+				blockCtx.GetHash = recordHash.getHashFunc
 				// Trace all the transactions contained within
 				for i, tx := range task.block.Transactions() {
 					if i == 0 && api.backend.ChainConfig().Taiko {
@@ -176,12 +176,14 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 
 				// Retrieve the touched accounts from the state
 				for addr, slots := range task.statedb.TouchedAccounts() {
-					proof, err := api.getProof(ctx, addr, slots, task.parent, reexec)
+					proof, code, err := api.getProof(ctx, addr, slots, task.parent, reexec)
 					if err != nil {
 						task.preflight.Error = err
 						break
 					}
 					task.preflight.InitAccountProofs = append(task.preflight.InitAccountProofs, proof)
+					task.preflight.Contracts[proof.CodeHash] = (*hexutil.Bytes)(&code)
+					task.preflight.AncestorHashes = recordHash.hashes
 				}
 
 				// Stream the result back to the result catcher or abort on teardown
@@ -301,7 +303,7 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 					Block:             next,
 					InitAccountProofs: []*ethapi.AccountResult{},
 					Contracts:         map[common.Hash]*hexutil.Bytes{},
-					AncestorHashes:    []common.Hash{},
+					AncestorHashes:    map[uint64]common.Hash{},
 				},
 			}:
 			case <-closed:
@@ -341,7 +343,7 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 }
 
 // getProof returns the Merkle-proof for a given account and optionally some storage keys.
-func (api *API) getProof(ctx context.Context, address common.Address, storageKeys []common.Hash, parent *types.Block, reexec uint64) (*ethapi.AccountResult, error) {
+func (api *API) getProof(ctx context.Context, address common.Address, storageKeys []common.Hash, parent *types.Block, reexec uint64) (*ethapi.AccountResult, []byte, error) {
 	var (
 		storageProof = make([]ethapi.StorageResult, len(storageKeys))
 	)
@@ -350,7 +352,7 @@ func (api *API) getProof(ctx context.Context, address common.Address, storageKey
 
 	statedb, release, err := api.backend.StateAtBlock(ctx, parent, reexec, nil, true, false)
 	if statedb == nil || err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer release()
 
@@ -363,7 +365,7 @@ func (api *API) getProof(ctx context.Context, address common.Address, storageKey
 			id := trie.StorageTrieID(header.Root, crypto.Keccak256Hash(address.Bytes()), storageRoot)
 			st, err := trie.NewStateTrie(id, statedb.Database().TrieDB())
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			storageTrie = st
 		}
@@ -380,7 +382,7 @@ func (api *API) getProof(ctx context.Context, address common.Address, storageKey
 			}
 			var proof proofList
 			if err := storageTrie.Prove(crypto.Keccak256(key.Bytes()), &proof); err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			value := (*hexutil.Big)(statedb.GetState(address, key).Big())
 			storageProof[i] = ethapi.StorageResult{Key: outputKey, Value: value, Proof: proof}
@@ -389,11 +391,11 @@ func (api *API) getProof(ctx context.Context, address common.Address, storageKey
 	// Create the accountProof.
 	tr, err := trie.NewStateTrie(trie.StateTrieID(header.Root), statedb.Database().TrieDB())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var accountProof proofList
 	if err := tr.Prove(crypto.Keccak256(address.Bytes()), &accountProof); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	balance := statedb.GetBalance(address).ToBig()
 	return &ethapi.AccountResult{
@@ -404,7 +406,7 @@ func (api *API) getProof(ctx context.Context, address common.Address, storageKey
 		Nonce:        hexutil.Uint64(statedb.GetNonce(address)),
 		StorageHash:  storageRoot,
 		StorageProof: storageProof,
-	}, statedb.Error()
+	}, statedb.GetCode(address), statedb.Error()
 }
 
 // proofList implements ethdb.KeyValueWriter and collects the proofs as
@@ -420,21 +422,20 @@ func (n *proofList) Delete(key []byte) error {
 	panic("not supported")
 }
 
-// decodeHash parses a hex-encoded 32-byte hash. The input may optionally
-// be prefixed by 0x and can have a byte length up to 32.
-func decodeHash(s string) (h common.Hash, inputLength int, err error) {
-	if strings.HasPrefix(s, "0x") || strings.HasPrefix(s, "0X") {
-		s = s[2:]
+type recordHash struct {
+	hashes   map[uint64]common.Hash
+	hashFunc vm.GetHashFunc
+}
+
+func newRecordHash(hashFunc vm.GetHashFunc) *recordHash {
+	return &recordHash{
+		hashes:   make(map[uint64]common.Hash),
+		hashFunc: hashFunc,
 	}
-	if (len(s) & 1) > 0 {
-		s = "0" + s
-	}
-	b, err := hex.DecodeString(s)
-	if err != nil {
-		return common.Hash{}, 0, errors.New("hex string invalid")
-	}
-	if len(b) > 32 {
-		return common.Hash{}, len(b), errors.New("hex string too long, want at most 32 bytes")
-	}
-	return common.BytesToHash(b), len(b), nil
+}
+
+func (r *recordHash) getHashFunc(n uint64) common.Hash {
+	hash := r.hashFunc(n)
+	r.hashes[n] = hash
+	return hash
 }
