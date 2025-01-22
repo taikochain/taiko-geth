@@ -41,7 +41,7 @@ type provingPreflightTask struct {
 	preflight *provingPreflightResult // Preflight results produced by the task
 }
 
-// ProvingPreflights traces the blockchain from the start block to the end block
+// ProvingPreflights traces the blockchain and gets preflights from the start block to the end block
 // and returns a subscription to the results. This function is intended to be
 // used with long-running operations, as tracing a chain can be time-consuming.
 //
@@ -92,21 +92,29 @@ func (api *API) ProvingPreflights(ctx context.Context, start, end rpc.BlockNumbe
 	return sub, nil
 }
 
-// provingPreflights performs preflight checks on a range of blocks to ensure they are ready for proving.
-// It traces transactions within the specified block range and returns a channel that streams the results.
+// provingPreflights traces the execution of blocks from `start` to `end` and returns a channel
+// that streams the results of the preflight checks for each block. The function uses multiple
+// goroutines to parallelize the tracing process.
 //
 // Parameters:
-// - start: The starting block of the range to be traced.
-// - end: The ending block of the range to be traced.
-// - config: Configuration for tracing, including re-execution settings and tracer options.
-// - closed: A channel to signal when the tracing should be aborted.
+// - start: The starting block for tracing.
+// - end: The ending block for tracing.
+// - config: Configuration for tracing, including the tracer to use and reexec settings.
+// - closed: A channel to signal when tracing should be aborted.
 //
 // Returns:
 // - A channel that streams the results of the preflight checks for each block.
 //
-// The function uses multiple goroutines to trace transactions concurrently, leveraging the available CPU cores.
-// It ensures that the state is properly managed and released after tracing each block. Progress and errors are logged
-// throughout the process.
+// The function performs the following steps:
+// 1. Determines the number of blocks to trace and the number of threads to use.
+// 2. Initializes the tracing configuration and state tracker.
+// 3. Starts multiple goroutines to trace the blocks concurrently.
+// 4. Feeds the blocks into the tracers and processes the results.
+// 5. Streams the results back to the caller through the returned channel.
+//
+// The tracing process involves fetching the blocks, preparing the state, and tracing each
+// transaction within the blocks. The results include the transaction trace results, account
+// proofs, contract codes, and ancestor hashes.
 func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, closed <-chan error) chan *provingPreflightResult {
 	reexec := defaultTraceReexec
 	if config != nil && config.Reexec != nil {
