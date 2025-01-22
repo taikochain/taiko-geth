@@ -140,12 +140,19 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 
 			// Fetch and execute the block trace taskCh
 			for task := range taskCh {
-				newHashFunc := newHashFuncWithRecord()
+				touchedHashes := map[uint64]common.Hash{}
+				hashFuncWrapper := func(hashFunc vm.GetHashFunc) vm.GetHashFunc {
+					return func(n uint64) common.Hash {
+						hash := hashFunc(n)
+						touchedHashes[n] = hash
+						return hash
+					}
+				}
 				var (
 					signer   = types.MakeSigner(api.backend.ChainConfig(), task.block.Number(), task.block.Time())
 					blockCtx = core.NewEVMBlockContext(task.block.Header(), api.chainContext(ctx), nil)
 				)
-				blockCtx.GetHash = newHashFunc.hashFuncWrapper(blockCtx.GetHash)
+				blockCtx.GetHash = hashFuncWrapper(blockCtx.GetHash)
 				// Trace all the transactions contained within
 				for i, tx := range task.block.Transactions() {
 					if i == 0 && api.backend.ChainConfig().Taiko {
@@ -189,7 +196,7 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 					task.preflight.InitAccountProofs = append(task.preflight.InitAccountProofs, proof)
 					task.preflight.Contracts[proof.CodeHash] = (*hexutil.Bytes)(&code)
 				}
-				task.preflight.AncestorHashes = newHashFunc.hashes
+				task.preflight.AncestorHashes = touchedHashes
 
 				// Stream the result back to the result catcher or abort on teardown
 				select {
@@ -424,26 +431,4 @@ func (n *proofList) Put(key []byte, value []byte) error {
 
 func (n *proofList) Delete(key []byte) error {
 	panic("not supported")
-}
-
-type hashFuncWithRecord struct {
-	hashes   map[uint64]common.Hash
-	hashFunc vm.GetHashFunc
-}
-
-func newHashFuncWithRecord() *hashFuncWithRecord {
-	return &hashFuncWithRecord{
-		hashes: make(map[uint64]common.Hash),
-	}
-}
-
-func (r *hashFuncWithRecord) hashFuncWrapper(hashFunc vm.GetHashFunc) vm.GetHashFunc {
-	r.hashFunc = hashFunc
-	return r.getHash
-}
-
-func (r *hashFuncWithRecord) getHash(n uint64) common.Hash {
-	hash := r.hashFunc(n)
-	r.hashes[n] = hash
-	return hash
 }
