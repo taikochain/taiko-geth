@@ -1,5 +1,8 @@
 package types
 
+// To make taiko-geth compatible with op-service.
+const DepositTxType = 0x7E
+
 func (tx *Transaction) MarkAsAnchor() error {
 	return tx.inner.markAsAnchor()
 }
