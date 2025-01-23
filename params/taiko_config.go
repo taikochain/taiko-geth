@@ -11,6 +11,10 @@ import (
 type ProtocolVersion [32]byte
 type ProtocolVersionComparison int
 
+func (p ProtocolVersion) String() string {
+	return ""
+}
+
 func (p ProtocolVersion) Compare(other ProtocolVersion) (cmp ProtocolVersionComparison) {
 	return 0
 }
