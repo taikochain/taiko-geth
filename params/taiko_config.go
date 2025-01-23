@@ -6,6 +6,14 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+// To make taiko-geth compatible with the op-service library, we need to define the following constants and functions.
+type ProtocolVersion [32]byte
+
+type ProtocolVersionV0 struct {
+	Build                           [8]byte
+	Major, Minor, Patch, PreRelease uint32
+}
+
 func u64(val uint64) *uint64 { return &val }
 
 // Network IDs
