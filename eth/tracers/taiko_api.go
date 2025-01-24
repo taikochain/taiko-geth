@@ -30,7 +30,7 @@ type provingPreflightResult struct {
 	InitAccountProofs []*ethapi.AccountResult        `json:"initAccountProofs"`
 	Contracts         map[common.Hash]*hexutil.Bytes `json:"contracts"`
 	AncestorHashes    map[uint64]common.Hash         `json:"ancestorHashes"`
-	Error             error                          `json:"error,omitempty"`
+	Error             string                         `json:"error,omitempty"`
 }
 
 // provingPreflightTask represents a single block preflight task.
@@ -158,7 +158,7 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 					if i == 0 && api.backend.ChainConfig().Taiko {
 						if err := tx.MarkAsAnchor(); err != nil {
 							log.Warn("Mark anchor transaction error", "error", err)
-							task.preflight.Error = err
+							task.preflight.Error = err.Error()
 							break
 						}
 					}
@@ -177,7 +177,7 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 					_, err := api.traceTx(ctx, tx, msg, txctx, blockCtx, task.statedb, config)
 					if err != nil {
 						log.Warn("Tracing failed", "hash", tx.Hash(), "block", task.block.NumberU64(), "err", err)
-						task.preflight.Error = err
+						task.preflight.Error = err.Error()
 						break
 					}
 				}
@@ -190,7 +190,7 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 				for addr, slots := range task.statedb.TouchedAccounts() {
 					proof, code, err := api.getProof(ctx, addr, slots, task.parent, reexec)
 					if err != nil {
-						task.preflight.Error = err
+						task.preflight.Error = err.Error()
 						break
 					}
 					task.preflight.InitAccountProofs = append(task.preflight.InitAccountProofs, proof)

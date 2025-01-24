@@ -17,7 +17,7 @@ func (s *StateDB) TouchedAccounts() TouchedAccounts {
 	}
 	for addr, obj := range s.stateObjectsDestruct {
 		// ignore empty account because it won't affect the state
-		if !obj.empty() {
+		if obj.selfDestructed || !obj.empty() {
 			touched[addr] = maps.Keys(obj.originStorage)
 		}
 	}
