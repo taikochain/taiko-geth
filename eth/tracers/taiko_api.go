@@ -194,7 +194,9 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 						break
 					}
 					task.preflight.InitAccountProofs = append(task.preflight.InitAccountProofs, proof)
-					task.preflight.Contracts[addr] = (*hexutil.Bytes)(&code)
+					if code != nil {
+						task.preflight.Contracts[addr] = (*hexutil.Bytes)(&code)
+					}
 				}
 				task.preflight.AncestorHashes = touchedHashes
 
@@ -313,7 +315,7 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 				preflight: &provingPreflightResult{
 					Block:             next,
 					InitAccountProofs: []*ethapi.AccountResult{},
-					Contracts:         map[common.Hash]*hexutil.Bytes{},
+					Contracts:         map[common.Address]*hexutil.Bytes{},
 					AncestorHashes:    map[uint64]common.Hash{},
 				},
 			}:
