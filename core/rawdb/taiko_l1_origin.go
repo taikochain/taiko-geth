@@ -31,8 +31,8 @@ func l1OriginKey(blockID *big.Int) []byte {
 type L1Origin struct {
 	BlockID       *big.Int    `json:"blockID" gencodec:"required"`
 	L2BlockHash   common.Hash `json:"l2BlockHash"`
-	L1BlockHeight *big.Int    `json:"l1BlockHeight" gencodec:"required" rlp:"optional"`
-	L1BlockHash   common.Hash `json:"l1BlockHash" gencodec:"required" rlp:"optional"`
+	L1BlockHeight *big.Int    `json:"l1BlockHeight" rlp:"optional"`
+	L1BlockHash   common.Hash `json:"l1BlockHash" rlp:"optional"`
 }
 
 type l1OriginMarshaling struct {
