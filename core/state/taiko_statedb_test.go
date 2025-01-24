@@ -30,14 +30,22 @@ func TestTouchedAccounts(t *testing.T) {
 		t.Fatalf("have %d touched accounts, want %d", have, want)
 	}
 
-	// destroy accounts
-	selfDestruct1 := common.BytesToAddress([]byte{1})
-	selfDestruct2 := common.BytesToAddress([]byte{2})
-	selfDestruct3 := common.BytesToAddress([]byte{3})
+	// touch slots
+	for i := byte(0); i < 3; i++ {
+		orig.getOrNewStateObject(common.BytesToAddress([]byte{i})).SetState(common.Hash{i}, common.Hash{i})
+	}
+	orig.Finalise(false)
+	touchedAccs = orig.TouchedAccounts()
+	for i := byte(0); i < 3; i++ {
+		if have, want := len(touchedAccs[common.BytesToAddress([]byte{i})]), 1; have != want {
+			t.Fatalf("have %d touched accounts, want %d", have, want)
+		}
+	}
 
-	orig.SelfDestruct(selfDestruct1)
-	orig.SelfDestruct(selfDestruct2)
-	orig.SelfDestruct(selfDestruct3)
+	// destroy accounts
+	for i := byte(0); i < 3; i++ {
+		orig.SelfDestruct(common.BytesToAddress([]byte{i}))
+	}
 	orig.Finalise(false)
 
 	touchedAccs = orig.TouchedAccounts()
@@ -55,4 +63,5 @@ func TestTouchedAccounts(t *testing.T) {
 	if have, want := len(touchedAccs), accountCounts; have != want {
 		t.Fatalf("have %d touched accounts, want %d", have, want)
 	}
+
 }
