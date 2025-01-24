@@ -26,11 +26,11 @@ type TaikoBackend interface {
 
 // provingPreflightResult is the result of a proving preflight request.
 type provingPreflightResult struct {
-	Block             *types.Block                   `json:"block"`
-	InitAccountProofs []*ethapi.AccountResult        `json:"initAccountProofs"`
-	Contracts         map[common.Hash]*hexutil.Bytes `json:"contracts"`
-	AncestorHashes    map[uint64]common.Hash         `json:"ancestorHashes"`
-	Error             string                         `json:"error,omitempty"`
+	Block             *types.Block                      `json:"block"`
+	InitAccountProofs []*ethapi.AccountResult           `json:"initAccountProofs"`
+	Contracts         map[common.Address]*hexutil.Bytes `json:"contracts"`
+	AncestorHashes    map[uint64]common.Hash            `json:"ancestorHashes"`
+	Error             string                            `json:"error,omitempty"`
 }
 
 // provingPreflightTask represents a single block preflight task.
@@ -194,7 +194,7 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 						break
 					}
 					task.preflight.InitAccountProofs = append(task.preflight.InitAccountProofs, proof)
-					task.preflight.Contracts[proof.CodeHash] = (*hexutil.Bytes)(&code)
+					task.preflight.Contracts[addr] = (*hexutil.Bytes)(&code)
 				}
 				task.preflight.AncestorHashes = touchedHashes
 
