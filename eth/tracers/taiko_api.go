@@ -59,7 +59,7 @@ type provingPreflightTask struct {
 // Note:
 //   - The function requires a notifier to be present in the context, otherwise it
 //     returns an error indicating that notifications are unsupported.
-func (api *API) ProvingPreflights(ctx context.Context, start, end rpc.BlockNumber, config *TraceConfig) (*rpc.Subscription, error) {
+func (api *API) ProvingPreflights(ctx context.Context, start, end rpc.BlockNumber, config *TraceConfig) ([]*provingPreflightResult, error) {
 	if start == 0 {
 		return nil, fmt.Errorf("start block must be greater than 0")
 	}
@@ -77,20 +77,13 @@ func (api *API) ProvingPreflights(ctx context.Context, start, end rpc.BlockNumbe
 	if from.Number().Cmp(to.Number()) >= 0 {
 		return nil, fmt.Errorf("end block (#%d) needs to come after start block (#%d)", end, start)
 	}
-	// Tracing a chain is a **long** operation, only do with subscriptions
-	notifier, supported := rpc.NotifierFromContext(ctx)
-	if !supported {
-		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
-	}
-	sub := notifier.CreateSubscription()
 
-	resCh := api.provingPreflights(from, to, config, sub.Err())
-	go func() {
-		for result := range resCh {
-			notifier.Notify(sub.ID, result)
-		}
-	}()
-	return sub, nil
+	resCh := api.provingPreflights(ctx, from, to, config)
+	var res []*provingPreflightResult
+	for result := range resCh {
+		res = append(res, result)
+	}
+	return res, nil
 }
 
 // provingPreflights traces the execution of blocks from `start` to `end` and returns a channel
@@ -98,10 +91,10 @@ func (api *API) ProvingPreflights(ctx context.Context, start, end rpc.BlockNumbe
 // goroutines to parallelize the tracing process.
 //
 // Parameters:
+// - ctx: The context for the operation.
 // - start: The starting block for tracing.
 // - end: The ending block for tracing.
 // - config: Configuration for tracing, including the tracer to use and reexec settings.
-// - closed: A channel to signal when tracing should be aborted.
 //
 // Returns:
 // - A channel that streams the results of the preflight checks for each block.
@@ -116,7 +109,7 @@ func (api *API) ProvingPreflights(ctx context.Context, start, end rpc.BlockNumbe
 // The tracing process involves fetching the blocks, preparing the state, and tracing each
 // transaction within the blocks. The results include the transaction trace results, account
 // proofs, contract codes, and ancestor hashes.
-func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, closed <-chan error) chan *provingPreflightResult {
+func (api *API) provingPreflights(ctx context.Context, start, end *types.Block, config *TraceConfig) chan *provingPreflightResult {
 	reexec := defaultTraceReexec
 	if config != nil && config.Reexec != nil {
 		reexec = *config.Reexec
@@ -128,7 +121,6 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 	}
 	var (
 		pend    = new(sync.WaitGroup)
-		ctx     = context.Background()
 		taskCh  = make(chan *provingPreflightTask, threads)
 		resCh   = make(chan *provingPreflightTask, threads)
 		tracker = newStateTracker(maximumPendingTraceStates, start.NumberU64())
@@ -203,7 +195,7 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 				// Stream the result back to the result catcher or abort on teardown
 				select {
 				case resCh <- task:
-				case <-closed:
+				case <-ctx.Done():
 					return
 				}
 			}
@@ -243,7 +235,7 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 		for number = start.NumberU64(); number < end.NumberU64(); number++ {
 			// Stop tracing if interruption was requested
 			select {
-			case <-closed:
+			case <-ctx.Done():
 				return
 			default:
 			}
@@ -319,7 +311,7 @@ func (api *API) provingPreflights(start, end *types.Block, config *TraceConfig, 
 					AncestorHashes:    map[uint64]common.Hash{},
 				},
 			}:
-			case <-closed:
+			case <-ctx.Done():
 				tracker.releaseState(number, release)
 				return
 			}

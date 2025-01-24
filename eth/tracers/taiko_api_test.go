@@ -64,7 +64,7 @@ func TestProvingPreflights(t *testing.T) {
 
 		from, _ := api.blockByNumber(context.Background(), rpc.BlockNumber(c.start))
 		to, _ := api.blockByNumber(context.Background(), rpc.BlockNumber(c.end))
-		resCh := api.provingPreflights(from, to, c.config, nil)
+		resCh := api.provingPreflights(context.Background(), from, to, c.config)
 
 		next := c.start + 1
 		for result := range resCh {
