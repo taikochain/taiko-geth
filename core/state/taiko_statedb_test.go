@@ -63,5 +63,4 @@ func TestTouchedAccounts(t *testing.T) {
 	if have, want := len(touchedAccs), accountCounts; have != want {
 		t.Fatalf("have %d touched accounts, want %d", have, want)
 	}
-
 }
