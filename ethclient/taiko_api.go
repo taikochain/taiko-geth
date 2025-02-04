@@ -41,8 +41,8 @@ func (ec *Client) L1OriginByID(ctx context.Context, blockID *big.Int) (*rawdb.L1
 	return res, nil
 }
 
-// WriteL1Origin sets the L2 block's corresponding L1 origin.
-func (ec *Client) WriteL1Origin(ctx context.Context, l1Origin *rawdb.L1Origin) (*rawdb.L1Origin, error) {
+// UpdateL1Origin sets the L2 block's corresponding L1 origin.
+func (ec *Client) UpdateL1Origin(ctx context.Context, l1Origin *rawdb.L1Origin) (*rawdb.L1Origin, error) {
 	var res *rawdb.L1Origin
 
 	if err := ec.c.CallContext(ctx, &res, "taiko_updateL1Origin", l1Origin); err != nil {
