@@ -60,6 +60,18 @@ func (s *TaikoAPIBackend) L1OriginByID(blockID *math.HexOrDecimal256) (*rawdb.L1
 	return l1Origin, nil
 }
 
+// SetL1HeadOrigin sets the latest L2 block's corresponding L1 origin.
+func (s *TaikoAPIBackend) SetL1HeadOrigin(blockID *math.HexOrDecimal256) *big.Int {
+	rawdb.WriteHeadL1Origin(s.eth.ChainDb(), (*big.Int)(blockID))
+	return (*big.Int)(blockID)
+}
+
+// UpdateL1Origin updates the L2 block's corresponding L1 origin.
+func (s *TaikoAPIBackend) UpdateL1Origin(l1Origin *rawdb.L1Origin) *rawdb.L1Origin {
+	rawdb.WriteL1Origin(s.eth.ChainDb(), l1Origin.BlockID, l1Origin)
+	return l1Origin
+}
+
 // GetSyncMode returns the node sync mode.
 func (s *TaikoAPIBackend) GetSyncMode() (string, error) {
 	return s.eth.config.SyncMode.String(), nil
