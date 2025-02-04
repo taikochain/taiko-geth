@@ -20,8 +20,8 @@ func (ec *Client) HeadL1Origin(ctx context.Context) (*rawdb.L1Origin, error) {
 }
 
 // WriteHeadL1Origin sets the latest L2 block's corresponding L1 origin.
-func (ec *Client) WriteHeadL1Origin(ctx context.Context, blockID *big.Int) (*rawdb.L1Origin, error) {
-	var res *rawdb.L1Origin
+func (ec *Client) WriteHeadL1Origin(ctx context.Context, blockID *big.Int) (*big.Int, error) {
+	var res *big.Int
 
 	if err := ec.c.CallContext(ctx, &res, "taiko_setHeadL1Origin", blockID); err != nil {
 		return nil, err
