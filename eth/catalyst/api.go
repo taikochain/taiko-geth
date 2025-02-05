@@ -32,6 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/stateless"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/internal/version"
@@ -460,6 +461,8 @@ func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payl
 				return valid(nil), engine.InvalidPayloadAttributes.With(err)
 			}
 
+			// Use the tx list hash as the beacon root.
+			txListHash := crypto.Keccak256Hash(payloadAttributes.BlockMetadata.TxList[:])
 			// Cache the mined block for later use.
 			args := &miner.BuildPayloadArgs{
 				Parent:       block.ParentHash(),
@@ -467,6 +470,7 @@ func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payl
 				FeeRecipient: block.Coinbase(),
 				Random:       block.MixDigest(),
 				Withdrawals:  block.Withdrawals(),
+				BeaconRoot:   &txListHash,
 				Version:      payloadVersion,
 			}
 			id := args.Id()
