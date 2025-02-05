@@ -470,8 +470,8 @@ func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payl
 				FeeRecipient: block.Coinbase(),
 				Random:       block.MixDigest(),
 				Withdrawals:  block.Withdrawals(),
-				BeaconRoot:   &txListHash,
 				Version:      payloadVersion,
+				TxListHash:   &txListHash,
 			}
 			id := args.Id()
 			payload, err := api.eth.Miner().BuildPayload(args, false)
