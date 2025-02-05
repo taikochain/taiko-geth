@@ -58,6 +58,7 @@ func (args *BuildPayloadArgs) Id() engine.PayloadID {
 	if args.BeaconRoot != nil {
 		hasher.Write(args.BeaconRoot[:])
 	}
+	// CHANGE(taiko): include the transaction list hash in the payload id calculation
 	if args.TxListHash != nil {
 		hasher.Write(args.TxListHash[:])
 	}
