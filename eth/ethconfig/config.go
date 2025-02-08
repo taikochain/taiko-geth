@@ -18,7 +18,7 @@
 package ethconfig
 
 import (
-	"errors"
+	"fmt"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -167,10 +167,8 @@ func CreateConsensusEngine(config *params.ChainConfig, db ethdb.Database) (conse
 	if config.Taiko {
 		return taiko.New(config, db), nil
 	}
-	// Geth v1.14.0 dropped support for non-merged networks in any consensus
-	// mode. If such a network is requested, reject startup.
-	if !config.TerminalTotalDifficultyPassed {
-		return nil, errors.New("only PoS networks are supported, please transition old ones with Geth v1.13.x")
+	if config.TerminalTotalDifficulty == nil {
+		return nil, fmt.Errorf("only PoS networks are supported, please transition old ones with Geth v1.13.x")
 	}
 	// Wrap previously supported consensus engines into their post-merge counterpart
 	if config.Clique != nil {
