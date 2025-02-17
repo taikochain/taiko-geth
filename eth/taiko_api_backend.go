@@ -76,14 +76,14 @@ func NewTaikoAuthAPIBackend(eth *Ethereum) *TaikoAuthAPIBackend {
 }
 
 // SetHeadL1Origin sets the latest L2 block's corresponding L1 origin.
-func (s *TaikoAuthAPIBackend) SetHeadL1Origin(blockID *math.HexOrDecimal256) *big.Int {
-	rawdb.WriteHeadL1Origin(s.eth.ChainDb(), (*big.Int)(blockID))
+func (a *TaikoAuthAPIBackend) SetHeadL1Origin(blockID *math.HexOrDecimal256) *big.Int {
+	rawdb.WriteHeadL1Origin(a.eth.ChainDb(), (*big.Int)(blockID))
 	return (*big.Int)(blockID)
 }
 
 // UpdateL1Origin updates the L2 block's corresponding L1 origin.
-func (s *TaikoAuthAPIBackend) UpdateL1Origin(l1Origin *rawdb.L1Origin) *rawdb.L1Origin {
-	rawdb.WriteL1Origin(s.eth.ChainDb(), l1Origin.BlockID, l1Origin)
+func (a *TaikoAuthAPIBackend) UpdateL1Origin(l1Origin *rawdb.L1Origin) *rawdb.L1Origin {
+	rawdb.WriteL1Origin(a.eth.ChainDb(), l1Origin.BlockID, l1Origin)
 	return l1Origin
 }
 
