@@ -75,6 +75,18 @@ func NewTaikoAuthAPIBackend(eth *Ethereum) *TaikoAuthAPIBackend {
 	return &TaikoAuthAPIBackend{eth}
 }
 
+// SetHeadL1Origin sets the latest L2 block's corresponding L1 origin.
+func (a *TaikoAuthAPIBackend) SetHeadL1Origin(blockID *math.HexOrDecimal256) *big.Int {
+	rawdb.WriteHeadL1Origin(a.eth.ChainDb(), (*big.Int)(blockID))
+	return (*big.Int)(blockID)
+}
+
+// UpdateL1Origin updates the L2 block's corresponding L1 origin.
+func (a *TaikoAuthAPIBackend) UpdateL1Origin(l1Origin *rawdb.L1Origin) *rawdb.L1Origin {
+	rawdb.WriteL1Origin(a.eth.ChainDb(), l1Origin.BlockID, l1Origin)
+	return l1Origin
+}
+
 // TxPoolContent retrieves the transaction pool content with the given upper limits.
 func (a *TaikoAuthAPIBackend) TxPoolContent(
 	beneficiary common.Address,

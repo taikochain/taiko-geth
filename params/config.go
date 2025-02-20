@@ -300,6 +300,7 @@ var NetworkNames = map[string]string{
 	JolnirNetworkID.String():           "Taiko Alpha-5 L2 (Jolnir)",
 	KatlaNetworkID.String():            "Taiko Alpha-6 L2 (Katla)",
 	HeklaNetworkID.String():            "Taiko Alpha-7 L2 (Hekla)",
+	PreconfDevnetNetworkID.String():    "Taiko Preconfirmation Devnet",
 }
 
 // ChainConfig is the core config which determines the blockchain settings.
@@ -358,6 +359,7 @@ type ChainConfig struct {
 	// CHANGE(taiko): Taiko network flag.
 	Taiko       bool     `json:"taiko"`
 	OntakeBlock *big.Int `json:"ontakeBlock,omitempty"` // Ontake switch block (nil = no fork, 0 = already activated)
+	PacayaBlock *big.Int `json:"pacayaBlock,omitempty"` // Ontake switch block (nil = no fork, 0 = already activated)
 }
 
 // EthashConfig is the consensus engine configs for proof-of-work based sealing.
@@ -577,6 +579,11 @@ func (c *ChainConfig) IsVerkle(num *big.Int, time uint64) bool {
 // CHANGE(taiko): IsOntake returns whether num is either equal to the Ontake fork block or greater.
 func (c *ChainConfig) IsOntake(num *big.Int) bool {
 	return isBlockForked(c.OntakeBlock, num)
+}
+
+// CHANGE(taiko): IsPacaya returns whether num is either equal to the pacaya fork block or greater.
+func (c *ChainConfig) IsPacaya(num *big.Int) bool {
+	return isBlockForked(c.PacayaBlock, num)
 }
 
 // IsEIP4762 returns whether eip 4762 has been activated at given block.
