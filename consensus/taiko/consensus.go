@@ -341,7 +341,7 @@ func (t *Taiko) ValidateAnchorTx(tx *types.Transaction, header *types.Header) (b
 
 	addr, err := s.Sender(tx)
 	if err != nil {
-		log.Info("anchorTx invalid", "reason", "sender"))
+		log.Info("anchorTx invalid", "reason", "sender")
 		return false, err
 	}
 
